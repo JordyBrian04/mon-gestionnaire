@@ -7,35 +7,43 @@ const db = SQLite.openDatabase('gestionnaire.db');
 const LockScreen = ({navigation}:any) => {
 
     const [code, setCode] = useState<any[]>([]);
-
-    const passcode = ['', '', '', ''];
+    const [userNbr, setuserNbr] = useState(0)
+    const [pass, setPass] = useState("")
 
     const setPasscode = (codeSet: any) => {
-        //console.log(codeSet)
-        if(code.length < 8){
-            setCode([...code, codeSet]);
-        }
+
+      if(code.length < 8){
+        setCode([...code, codeSet]);
+      }
+
     }
+
+    useEffect(() => {
+      if (code.length === pass.length) {
+          handleValider()
+      }
+  }, [code]);
 
     const removeLastValue = () => {
         setCode(prevCode => prevCode.slice(0, -1));
     };
 
-    const [userNbr, setuserNbr] = useState(0)
 
     useEffect(() => {
       const createTable = async () => {
         await db.transaction(tx => {
           tx.executeSql(
-            'CREATE TABLE IF NOT EXISTS params (id INTEGER PRIMARY KEY AUTOINCREMENT, code VARCHAR(10));',
+            'CREATE TABLE IF NOT EXISTS param (id INTEGER PRIMARY KEY AUTOINCREMENT, code VARCHAR(10));',
             [],
             (_, result) => {
                 tx.executeSql(
-                  'SELECT * FROM params;',
+                  'SELECT * FROM param;',
                   [],
                   (_, results) => {
                     setuserNbr(results.rows.length)
-                    console.log('Query result:', results.rows.length); // Log the row count
+                    //console.log('Query result:', results.rows.length); // Log the row count
+                    //console.log('Query result:', (results.rows._array[0].code.length)); // Log the row count
+                    setPass(results.rows._array[0].code)
                   },
                   (_, error) => {
                     console.error('Error querying data:', error);
@@ -65,11 +73,12 @@ const LockScreen = ({navigation}:any) => {
             //setLoading(true)
             db.transaction(tx => {
               tx.executeSql(
-                'INSERT INTO params (code) VALUES (?);',
+                'INSERT INTO param (code) VALUES (?);',
                 [passcode],
                 (_, result) => {
                 //   storeUser(userInfo.username)
                 //   setLoading(false)
+                  setCode([])
                   navigation.navigate("Tabs")
                 },
                 (_, error) => {
@@ -82,15 +91,18 @@ const LockScreen = ({navigation}:any) => {
             //setLoading(true)
             db.transaction(tx => {
               tx.executeSql(
-                'SELECT id FROM params WHERE code=?;',
+                'SELECT id FROM param WHERE code=?;',
                 [passcode],
                 (_, result) => {
+                  console.log(result, passcode)
                   if(result.rows.length > 0){
                     // storeUser(userInfo.username)
                     // setLoading(false)
+                    setCode([])
                     navigation.navigate("Tabs")
                   }else{
-                    Alert.alert("Mot de passe incorrect")
+                    Alert.alert("Mot de passe incorrect", "Veuillez entrer le bon mot de passe")
+                    setCode([])
                     //setLoading(false)
                   }
                 },
@@ -103,11 +115,7 @@ const LockScreen = ({navigation}:any) => {
           }
     }
 
-    // Fonction de comparaison aléatoire pour le mélange
-    const randomCompare = () => Math.random() - 0.5;
 
-    // Mélange aléatoire du tableau nombre
-    const shuffledNombre = [...nombre].sort(randomCompare);
 
   return (
     <SafeAreaView className='flex-1 pt-7 pr-4 pl-4 bg-gray-800 items-center justify-center'>
@@ -118,9 +126,10 @@ const LockScreen = ({navigation}:any) => {
       <View className='flex-row justify-between items-center mt-6 w-[56%]'>
         {code.map((p:any) => {
             return (
-                <View key={p} className='w-3 h-3 border border-white' style={{ borderRadius: 100, backgroundColor: p !== '' ? '#FFFFFF' : 'none' }}></View>
+                <View className='w-3 h-3 border border-white' style={{ borderRadius: 100, backgroundColor: p !== '' ? '#FFFFFF' : 'none' }}></View>
             )
         })}
+
         {/* <View className='w-3 h-3 border border-white' style={{ borderRadius: 100 }}></View>
         <View className='w-3 h-3 border border-white' style={{ borderRadius: 100 }}></View>
         <View className='w-3 h-3 border border-white' style={{ borderRadius: 100 }}></View>
@@ -128,7 +137,9 @@ const LockScreen = ({navigation}:any) => {
       </View>
 
       <View className='mt-14 flex-row flex-wrap items-center justify-center'>
-        {shuffledNombre.map(n => {
+        {nombre.sort(() => Math.random() - 0.5).map(n => {
+              // Fonction de comparaison aléatoire pour le mélange
+
             return (
                 <TouchableOpacity key={n.key} className='bg-slate-200/30 w-16 h-16 items-center justify-center rounded-full m-3' onPress={() => setPasscode(n.value)}>
                     <Text className='text-white text-2xl font-bold'>{n.value}</Text>
