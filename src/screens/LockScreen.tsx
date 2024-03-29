@@ -1,8 +1,17 @@
 import { View, Text, SafeAreaView, TouchableOpacity, Alert } from 'react-native'
 import React, { useState, useEffect } from 'react'
-import * as SQLite from 'expo-sqlite';
+import { initDatabase } from '../components/database';
 
-const db = SQLite.openDatabase('gestionnaire.db');
+// const db = SQLite.openDatabase(
+//   {
+//     name: 'gestionnaire.db',
+//     location: 'default',
+//     createFromLocation: 'default'
+//   },
+//   () => { },
+//   error => console.log( error )
+// );
+const db = initDatabase()
 
 const LockScreen = ({navigation}:any) => {
 
@@ -19,7 +28,8 @@ const LockScreen = ({navigation}:any) => {
     }
 
     useEffect(() => {
-      if (code.length === pass.length) {
+      //console.log(code.length, pass.length)
+      if (userNbr > 0 && code.length === pass.length) {
           handleValider()
       }
   }, [code]);
@@ -30,20 +40,25 @@ const LockScreen = ({navigation}:any) => {
 
 
     useEffect(() => {
+      //console.log("remove")
       const createTable = async () => {
-        await db.transaction(tx => {
+        db.transaction(tx => {
           tx.executeSql(
             'CREATE TABLE IF NOT EXISTS param (id INTEGER PRIMARY KEY AUTOINCREMENT, code VARCHAR(10));',
             [],
             (_, result) => {
+              console.log('Query result:', result.rows.length); // Log the row count
                 tx.executeSql(
                   'SELECT * FROM param;',
                   [],
                   (_, results) => {
                     setuserNbr(results.rows.length)
-                    //console.log('Query result:', results.rows.length); // Log the row count
+                    console.log('Query result:', results.rows.length); // Log the row count
                     //console.log('Query result:', (results.rows._array[0].code.length)); // Log the row count
-                    setPass(results.rows._array[0].code)
+                    if(results.rows.length > 0) {
+
+                      setPass(results.rows._array[0].code)
+                    }
                   },
                   (_, error) => {
                     console.error('Error querying data:', error);
@@ -56,6 +71,17 @@ const LockScreen = ({navigation}:any) => {
               return false; // Retourne false en cas d'erreur
             }
           );
+          tx.executeSql(
+            'CREATE TABLE IF NOT EXISTS agenda (id INTEGER PRIMARY KEY AUTOINCREMENT, dates DATE, heure TIME, titre VARCHAR(200));',
+            [],
+            (_, result) => {
+              console.log('agenda table created:', result)
+            },
+            (_, error) => {
+              console.error('Error creating table:', error);
+              return false; // Retourne false en cas d'erreur
+            }
+          )
         });
       }
   
@@ -69,50 +95,57 @@ const LockScreen = ({navigation}:any) => {
 
     const handleValider = () =>{
         const passcode = code.join('')
-        if(userNbr == 0){
-            //setLoading(true)
-            db.transaction(tx => {
-              tx.executeSql(
-                'INSERT INTO param (code) VALUES (?);',
-                [passcode],
-                (_, result) => {
-                //   storeUser(userInfo.username)
-                //   setLoading(false)
-                  setCode([])
-                  navigation.navigate("Tabs")
-                },
-                (_, error) => {
-                  console.error('Error inserting data:', error);
-                  return false;
-                }
-              );
-            });
-          }else if(userNbr >= 1){
-            //setLoading(true)
-            db.transaction(tx => {
-              tx.executeSql(
-                'SELECT id FROM param WHERE code=?;',
-                [passcode],
-                (_, result) => {
-                  console.log(result, passcode)
-                  if(result.rows.length > 0){
-                    // storeUser(userInfo.username)
-                    // setLoading(false)
+        if(code.length > 0){
+          if(userNbr === 0){
+              //setLoading(true)
+              db.transaction(tx => {
+                tx.executeSql(
+                  'INSERT INTO param (code) VALUES (?);',
+                  [passcode],
+                  (_, result) => {
+                  //   storeUser(userInfo.username)
+                  //   setLoading(false)
+                    console.log(result)
                     setCode([])
                     navigation.navigate("Tabs")
-                  }else{
-                    Alert.alert("Mot de passe incorrect", "Veuillez entrer le bon mot de passe")
-                    setCode([])
-                    //setLoading(false)
+                  },
+                  (_, error) => {
+                    console.log('Error inserting data:', error);
+                    return false;
                   }
-                },
-                (_, error) => {
-                  console.error('Error inserting data:', error);
-                  return false;
-                }
-              );
-            });
+                );
+              });
           }
+          else if(userNbr >= 1){
+              //setLoading(true)
+              db.transaction(tx => {
+                tx.executeSql(
+                  'SELECT id FROM param WHERE code=?;',
+                  [passcode],
+                  (_, result) => {
+                    console.log(result, passcode)
+                    if(result.rows.length > 0){
+                      // storeUser(userInfo.username)
+                      // setLoading(false)
+                      setCode([])
+                      navigation.navigate("Tabs")
+                    }else{
+                      Alert.alert("Mot de passe incorrect", "Veuillez entrer le bon mot de passe")
+                      setCode([])
+                      //setLoading(false)
+                    }
+                  },
+                  (_, error) => {
+                    console.error('Error inserting data:', error);
+                    return false;
+                  }
+                );
+              });
+          }
+        }else{
+          Alert.alert("Informations non saisie","Veuillez saisir un code")
+        }
+
     }
 
 
@@ -124,9 +157,9 @@ const LockScreen = ({navigation}:any) => {
       </Text>
 
       <View className='flex-row justify-between items-center mt-6 w-[56%]'>
-        {code.map((p:any) => {
+        {code.map((p:any, index) => {
             return (
-                <View className='w-3 h-3 border border-white' style={{ borderRadius: 100, backgroundColor: p !== '' ? '#FFFFFF' : 'none' }}></View>
+                <View key={index} className='w-3 h-3 border border-white' style={{ borderRadius: 100, backgroundColor: p !== '' ? '#FFFFFF' : 'none' }}></View>
             )
         })}
 

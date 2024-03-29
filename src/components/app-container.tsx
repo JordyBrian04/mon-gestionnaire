@@ -10,6 +10,8 @@ import { AntDesign, FontAwesome5 } from '@expo/vector-icons';
 import LockScreen from '../screens/LockScreen'
 import Agenda from '../screens/(tabs)/agenda';
 import Wallet from '../screens/(tabs)/wallet';
+import Caisse from '../screens/(tabs)/caisse';
+import Statistique from '../screens/Statistique';
 
 const Stack = createStackNavigator()
 const TabStack = createBottomTabNavigator()
@@ -27,9 +29,9 @@ const screenOptions = ({route}:any) => ({
       case "Wallet":
         icon = "wallet";
         break;
-      // case "Vente":
-      //   icon = "cart-arrow-down";
-      //   break;
+      case "Caisse":
+        icon = "bank";
+        break;
       // case "Statistique":
       //   icon = "chart-bar";
       //   break;
@@ -50,8 +52,12 @@ const screenOptions = ({route}:any) => ({
   tabBarStyle: {
     backgroundColor: "#ffffff",
     width: 'full',
-    height: 45,
+    height: 50,
+    // borderRadius: 25,
+    // alignSelf:"center",
+    // marginBottom: 5,
   },
+
 })
 
 const TabStackScreens = () => {
@@ -59,8 +65,8 @@ const TabStackScreens = () => {
     <TabStack.Navigator screenOptions={screenOptions}>
       <TabStack.Screen options={{ headerShown: false }} name="Agenda" component={Agenda} />
       <TabStack.Screen options={{ headerShown: false }} name="Wallet" component={Wallet} />
+      <TabStack.Screen options={{ headerShown: false }} name="Caisse" component={Caisse} />
       {/* <TabStack.Screen options={{ headerShown: false }} name="Vente" component={Vente} />
-      <TabStack.Screen options={{ headerShown: false }} name="Statistique" component={Statistique} />
       <TabStack.Screen options={{ headerShown: false }} name="Parametre" component={Parametre} /> */}
     </TabStack.Navigator>
   )
@@ -69,22 +75,24 @@ const TabStackScreens = () => {
 const Appcontainer = () => {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Tabs">
+      <Stack.Navigator initialRouteName="Statistique">
         <Stack.Screen
           options={{ headerShown: false }}
           name="LockScreen"
           component={LockScreen}
         />
+
         <Stack.Screen options={{headerShown: false}} name="Tabs" component={TabStackScreens}/>
+
+        <Stack.Screen
+          options={{ headerShown: false }}
+          name="Statistique"
+          component={Statistique}
+        />
         {/* <Stack.Screen
           options={{ headerShown: false }}
           name="Login"
           component={Login}
-        />
-        <Stack.Screen
-          options={{ headerShown: false }}
-          name="Tabs"
-          component={TabStackScreens}
         />
         <Stack.Screen
           options={{ headerShown: false }}

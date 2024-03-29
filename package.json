@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.0",
+    "@react-native-community/datetimepicker": "7.6.1",
     "@react-navigation/bottom-tabs": "^6.5.20",
     "@react-navigation/drawer": "^6.6.15",
     "@react-navigation/native": "^6.1.17",
@@ -25,6 +26,7 @@
     "nativewind": "^2.0.11",
     "react": "18.2.0",
     "react-native": "0.73.6",
+    "react-native-chart-kit": "^6.12.0",
     "react-native-dropdown-select-list": "^2.0.5",
     "react-native-gesture-handler": "~2.14.0",
     "react-native-reanimated": "~3.6.2",
@@ -36,12 +38,14 @@
     "react-native-timeline-flatlist": "^0.8.0",
     "shortid": "^2.2.16",
     "styled-components": "^6.1.8",
-    "styled-system": "^5.1.5"
+    "styled-system": "^5.1.5",
+    "expo-blur": "~12.9.2"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@types/react": "~18.2.45",
     "@types/react-native": "~0.64.12",
+    "@types/react-native-sqlite-storage": "^6.0.5",
     "prettier": "^3.2.5",
     "tailwindcss": "^3.3.2",
     "typescript": "^5.1.3"
