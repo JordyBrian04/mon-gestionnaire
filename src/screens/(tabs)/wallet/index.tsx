@@ -8,13 +8,17 @@ import {
   TouchableWithoutFeedback,
   TextInput,
   ActivityIndicator,
-  Platform
+  Platform,
+  Alert
 } from 'react-native'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { AntDesign, MaterialCommunityIcons } from '@expo/vector-icons'
 import { LineChart } from 'react-native-chart-kit'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { SelectList } from 'react-native-dropdown-select-list'
+import { initDatabase } from '../../../components/database'
+
+const db = initDatabase();
 
 const Wallet = ({navigation}:any) => {
   const [showModal, setShowModal] = useState(false)
@@ -22,10 +26,106 @@ const Wallet = ({navigation}:any) => {
   const [date, setDate] = useState(new Date())
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [solde, setSolde] = useState(0)
+  const [depense, setDepense] = useState(0)
+  const [revenus, setRevenus] = useState(0)
+  const [data, setData] = useState<any[]>([])
+  const [labels, setLabels] = useState<any[]>([])
+  const [soldeData, setSoldeData] = useState<any[]>([])
+  const [transaction, setTransaction] = useState({
+    type_transaction: '',
+    description: '',
+    dates: '',
+    montant: '',
+    type_depense: '',
+  })
 
   const toggleDatePicker = () => {
     setOpen(!open)
   }
+
+  //console.log(date.toISOString().substring(0, 10));
+
+  const getData = async () => {
+    await db.transaction(tx => {
+      tx.executeSql(
+        `SELECT SUM(CASE WHEN type_transaction = 'Entrée' THEN montant ELSE 0 END) AS total_entrees, SUM(CASE WHEN type_transaction = 'Dépense' THEN montant ELSE 0 END) AS total_depenses, SUM(CASE WHEN type_transaction = 'Entrée' THEN montant ELSE -montant END) AS solde FROM transactions;`,
+        [],
+        (_, result) => {
+          //console.log(result.rows._array);
+          setSolde(result.rows._array[0].solde === null ? 0 : result.rows._array[0].solde)
+        },
+        (_, error) => {
+          console.error('Error creating table:', error)
+          return false // Retourne false en cas d'erreur
+        }
+      );
+      tx.executeSql(
+        `SELECT SUM(CASE WHEN type_transaction = 'Entrée' THEN montant ELSE 0 END) AS total_entrees, SUM(CASE WHEN type_transaction = 'Dépense' THEN montant ELSE 0 END) AS total_depenses FROM transactions WHERE dates=?;`,
+        [date.toISOString().substring(0, 10)],
+        (_, result) => {
+          //console.log(result.rows._array);
+          setDepense(result.rows._array[0].total_depenses === null ? 0 : result.rows._array[0].total_depenses)
+          setRevenus(result.rows._array[0].total_entrees === null ? 0 : result.rows._array[0].total_entrees)
+          //setSolde(result.rows._array[0].solde === null ? 0 : result.rows._array[0].solde)
+        },
+        (_, error) => {
+          console.error('Error query table:', error)
+          return false // Retourne false en cas d'erreur
+        }
+      );
+      tx.executeSql(
+        'SELECT * FROM transactions WHERE dates=?;',
+        [date.toISOString().substring(0, 10)],
+        (_, result) => {
+          console.log(result.rows._array);
+          setData(result.rows._array)
+        },
+        (_, error) => {
+          console.error('Error creating table:', error)
+          return false // Retourne false en cas d'erreur
+        }
+      );
+      tx.executeSql(
+        `SELECT 
+          CASE SUBSTR(dates, 6, 2)
+              WHEN '01' THEN 'Jan'
+              WHEN '02' THEN 'Fév'
+              WHEN '03' THEN 'Mar'
+              WHEN '04' THEN 'Avr'
+              WHEN '05' THEN 'Mai'
+              WHEN '06' THEN 'Jui'
+              WHEN '07' THEN 'Jul'
+              WHEN '08' THEN 'Aoû'
+              WHEN '09' THEN 'Sep'
+              WHEN '10' THEN 'Oct'
+              WHEN '11' THEN 'Nov'
+              WHEN '12' THEN 'Déc'
+          END AS Mois,
+            SUM(CASE WHEN type_transaction = 'Entrée' THEN montant ELSE 0 END) AS total_entrees,
+            SUM(CASE WHEN type_transaction = 'Dépense' THEN montant ELSE 0 END) AS total_depenses,
+            SUM(CASE WHEN type_transaction = 'Entrée' THEN montant ELSE -montant END) AS solde
+        FROM transactions
+        GROUP BY SUBSTR(dates, 1, 7)
+        ORDER BY SUBSTR(dates, 1, 7) ASC;`,
+        [],
+        (_, result) => {
+          console.log(result.rows._array);
+          setLabels(result.rows._array.map(item => item.Mois));
+          setSoldeData(result.rows._array.map(item => item.solde))
+        },
+        (_, error) => {
+          console.error('Error query on table transactions:', error)
+          return false // Retourne false en cas d'erreur
+        }
+      );
+    })
+  }
+
+  useEffect(() => {
+    getData()
+    //console.log(labels)
+  },[])
 
   const onChange = ({ type }: any, selectedDate: any) => {
     if (type === 'set') {
@@ -36,10 +136,11 @@ const Wallet = ({navigation}:any) => {
         toggleDatePicker()
 
         //On attribu la date à la valeur date (currentDate.toLocaleDateString('fr-FR'))
-        // setTache({
-        //   ...tache,
-        //   date: currentDate.toLocaleDateString('fr-FR', options)
-        // })
+        setTransaction({
+          ...transaction,
+          dates: currentDate.toISOString().substring(0, 10)
+        })
+        //console.log(currentDate.toISOString().substring(0, 10))
       }
     } else {
       toggleDatePicker()
@@ -57,6 +158,80 @@ const Wallet = ({navigation}:any) => {
     { key: 3, value: 'Autre' },
   ]
 
+  const options: any = {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }
+
+  const handleAddTransaction = async () => {
+    console.log(transaction);
+    // await db.transaction(tx => {
+    //   tx.executeSql(
+    //     'DELETE FROM transactions;',
+    //     [],
+    //     (_, result) => {
+    //       console.log(result)
+    //       if (result.rowsAffected >= 1) {
+    //         getData()
+    //         setShowModal(false)
+    //         setTransaction({
+    //           type_transaction: '',
+    //           description: '',
+    //           dates: '',
+    //           montant: '',
+    //           type_depense: '',
+    //         })
+    //         setLoading(false)
+    //       }
+    //     },
+    //     (_, error) => {
+    //       setLoading(false)
+    //       console.log('Error inserting data:', error)
+    //       return false
+    //     }
+    //   );
+    // })
+    if(transaction.dates !== '' && transaction.description !== '' && transaction.montant !== '' && transaction.type_transaction !== ''){
+      if(transaction.type_transaction === 'Dépense'){
+        if(transaction.type_depense === ''){
+          Alert.alert('Information','Veuillez remplir tous les champs')
+          return
+        }
+      }
+
+      setLoading(true)
+      await db.transaction(tx => {
+        tx.executeSql(
+          'INSERT INTO transactions (type_transaction, description, dates, montant, type_depense) VALUES (?,?,?,?,?);',
+          [transaction.type_transaction, transaction.description, transaction.dates, transaction.montant, transaction.type_depense],
+          (_, result) => {
+            if (result.rowsAffected >= 1) {
+              getData()
+              setShowModal(false)
+              setTransaction({
+                type_transaction: '',
+                description: '',
+                dates: '',
+                montant: '',
+                type_depense: '',
+              })
+              setLoading(false)
+            }
+          },
+          (_, error) => {
+            setLoading(false)
+            console.log('Error inserting data:', error)
+            return false
+          }
+        );
+      })
+    }else{
+      Alert.alert('Information','Veuillez remplir tous les champs')
+    }
+  }
+
   function renderModal(){
     return(
       <Modal visible={showModal} transparent animationType='slide'>
@@ -72,7 +247,7 @@ const Wallet = ({navigation}:any) => {
                 <SelectList
                   setSelected={(val: any) => [
                     setAffichage(val),
-                    console.log(val)
+                    setTransaction({ ...transaction, type_transaction: val })
                   ]}
                   data={TypeTransactionOptions}
                   defaultOption={{ key: affichage, value: affichage }}
@@ -99,8 +274,8 @@ const Wallet = ({navigation}:any) => {
                             className="border border-gray-300 p-3 rounded"
                             editable={false}
                             //value={tache.date}
-                            //value={tache.date.toLocaleDateString('fr-FR', options)}
-                            //onChangeText={e => setTache({ ...tache, date: e })}
+                            value={transaction.dates}
+                            onChangeText={e => setTransaction({ ...transaction, dates: e })}
                           />
                         </TouchableOpacity>
                       )}
@@ -109,16 +284,16 @@ const Wallet = ({navigation}:any) => {
                     <TextInput
                       placeholder="Description"
                       className="border border-gray-300 p-3 rounded mt-2"
-                      //value={tache.titre}
-                      //onChangeText={e => setTache({ ...tache, titre: e })}
+                      value={transaction.description}
+                      onChangeText={e => setTransaction({ ...transaction, description: e })}
                     />
 
                     <TextInput
                       placeholder="Montant"
                       className="border border-gray-300 p-3 rounded mt-2"
                       keyboardType='numeric'
-                      //value={tache.titre}
-                      //onChangeText={e => setTache({ ...tache, titre: e })}
+                      value={transaction.montant}
+                      onChangeText={e => setTransaction({ ...transaction, montant: e })}
                     />
                   </View>
                 ): affichage === 'Dépense' ?
@@ -138,9 +313,8 @@ const Wallet = ({navigation}:any) => {
                             placeholder="Date"
                             className="border border-gray-300 p-3 rounded"
                             editable={false}
-                            //value={tache.date}
-                            //value={tache.date.toLocaleDateString('fr-FR', options)}
-                            //onChangeText={e => setTache({ ...tache, date: e })}
+                            value={transaction.dates}
+                            onChangeText={e => setTransaction({ ...transaction, dates: e })}
                           />
                         </TouchableOpacity>
                       )}
@@ -148,7 +322,7 @@ const Wallet = ({navigation}:any) => {
 
                     <SelectList
                       setSelected={(val: any) => [
-                        //setAffichage(val),
+                        setTransaction({ ...transaction, type_depense: val })
                         //console.log(val)
                       ]}
                       data={TypeDepense}
@@ -161,16 +335,16 @@ const Wallet = ({navigation}:any) => {
                     <TextInput
                       placeholder="Description"
                       className="border border-gray-300 p-3 rounded mt-2"
-                      //value={tache.titre}
-                      //onChangeText={e => setTache({ ...tache, titre: e })}
+                      value={transaction.description}
+                      onChangeText={e => setTransaction({ ...transaction, description: e })}
                     />
 
                     <TextInput
                       placeholder="Montant"
                       className="border border-gray-300 p-3 rounded mt-2"
                       keyboardType='numeric'
-                      //value={tache.titre}
-                      //onChangeText={e => setTache({ ...tache, titre: e })}
+                      value={transaction.montant}
+                      onChangeText={e => setTransaction({ ...transaction, montant: e })}
                     />
                   </View>) :
                   (null)
@@ -178,7 +352,7 @@ const Wallet = ({navigation}:any) => {
 
                 <TouchableOpacity
                   className="mt-4 mb-1 p-3 bg-black rounded-3xl"
-                  //onPress={handleAddTache}
+                  onPress={handleAddTransaction}
                 >
                   <Text className="text-white text-center font-bold text-[16px]">
                     {loading ? <ActivityIndicator /> : 'Ajouter'}
@@ -211,7 +385,7 @@ const Wallet = ({navigation}:any) => {
       </View>
 
       <View className="mt-4 flex-row">
-        <Text className="text-4xl font-bold">1 168 900</Text>
+        <Text className="text-4xl font-bold">{solde.toLocaleString('fr-FR')}</Text>
         <Text className="text-gray-500 text-xl font-semibold mt-4 ml-2">
           FCFA
         </Text>
@@ -222,13 +396,13 @@ const Wallet = ({navigation}:any) => {
           <View className="bg-red-400 p-3 rounded-xl w-[45%]">
             <Text>Dépenses du jour</Text>
 
-            <Text className="text-xl font-bold mt-1">6 000 FCFA</Text>
+            <Text className="text-xl font-bold mt-1">{depense.toLocaleString('fr-FR')} FCFA</Text>
           </View>
 
           <View className="bg-green-400 p-3 rounded-xl w-[45%]">
             <Text>Entrée du jour</Text>
 
-            <Text className="text-xl font-bold mt-1">6 000 FCFA</Text>
+            <Text className="text-xl font-bold mt-1">{revenus.toLocaleString('fr-FR')} FCFA</Text>
           </View>
         </View>
 
@@ -236,36 +410,10 @@ const Wallet = ({navigation}:any) => {
         <View className="mt-4">
           <LineChart
             data={{
-              labels: [
-                'Jan',
-                'Fév',
-                'Mar',
-                'Avr',
-                'Mai',
-                'Jui',
-                'Jul',
-                'Aou',
-                'Sep',
-                'Oct',
-                'Nov',
-                'Déc'
-              ],
+              labels: labels,
               datasets: [
                 {
-                  data: [
-                    4000,
-                    6000,
-                    5000,
-                    3500,
-                    7000,
-                    1000,
-                    2000,
-                    5900,
-                    4300,
-                    10000,
-                    13000,
-                    8000
-                  ]
+                  data: soldeData
                 }
               ]
             }}
@@ -305,100 +453,33 @@ const Wallet = ({navigation}:any) => {
 
         {/* Transactions */}
         <View className='mb-4'>
-            <Text className='text-lg font-bold mb-3 mt-2'>Transactions</Text>
+            <Text className='text-lg font-bold mb-3 mt-2'>Transactions du jour
+              <Text className='ml-2 text-sm text-gray-400'> ({date.toLocaleDateString('fr-FR', options)})</Text>
+            </Text>
 
-            {/* Debut de ligne */}
-            <View className='flex-row items-center justify-between'>
-              <Text className='text-gray-500 mb-2'>mardi 23 mars 2024</Text>
-              <Text className='text-gray-700 mb-2 font-extrabold'>10 000 FCFA</Text>
-            </View>
-
-            {/* Depense */}
-            <View className='flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full'>
-
-              <View className='bg-red-500 p-1 w-8 h-8 items-center justify-center rounded-full'>
-                <MaterialCommunityIcons name="cash-minus" size={24} color="white" />
-              </View>
-
-              <View className='items-start w-[60%]'>
-                <Text className='text-sm font-bold'>Transport pour le travail par le 4e pont ADO</Text>
-              </View>
-
-              <View>
-                <Text className='text-sm font-bold'>-800 FCFA</Text>
-              </View>
-            </View>
-
-            {/* Entrée */}
-            <View className='flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full'>
-
-              <View className='bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full'>
-                <MaterialCommunityIcons name="cash-plus" size={24} color="white" />
-              </View>
-
-              <View className='items-start w-[60%]'>
-                <Text className='text-sm font-bold'>Dépot</Text>
-              </View>
-
-              <View>
-                <Text className='text-sm font-bold'>10 800 FCFA</Text>
-              </View>
-            </View>
-
-            {/* Entrée */}
-            <View className='flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full'>
-
-              <View className='bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full'>
-                <MaterialCommunityIcons name="cash-plus" size={24} color="white" />
-              </View>
-
-              <View className='items-start w-[60%]'>
-                <Text className='text-sm font-bold'>Dépot</Text>
-              </View>
-
-              <View>
-                <Text className='text-sm font-bold'>10 800 FCFA</Text>
-              </View>
-            </View>
-            {/* Fin de ligne */}
-
-            {/* Debut de ligne */}
-            <View className='flex-row items-center justify-between'>
-              <Text className='text-gray-500 mb-2'>mardi 23 mars 2024</Text>
-              <Text className='text-gray-700 mb-2 font-extrabold'>10 000 FCFA</Text>
-            </View>
-
-            <View className='flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full'>
-
-              <View className='bg-red-500 p-1 w-8 h-8 items-center justify-center rounded-full'>
-                <MaterialCommunityIcons name="cash-minus" size={24} color="white" />
-              </View>
-
-              <View className='items-start w-[60%]'>
-                <Text className='text-sm font-bold'>Transport pour le travail par le 4e pont ADO</Text>
-              </View>
-
-              <View>
-                <Text className='text-sm font-bold'>-800 FCFA</Text>
-              </View>
-            </View>
-
-            <View className='flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full'>
-
-              <View className='bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full'>
-                <MaterialCommunityIcons name="cash-plus" size={24} color="white" />
-              </View>
-
-              <View className='items-start w-[60%]'>
-                <Text className='text-sm font-bold'>Dépot</Text>
-              </View>
-
-              <View>
-                <Text className='text-sm font-bold'>10 800 FCFA</Text>
-              </View>
-            </View>
-            {/* Fin de ligne */}
-
+            {data.map((item,index) => {
+              return (
+                <View key={index} className='flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full'>
+                  {item.type_transaction === 'Dépense'? (
+                    <View className='bg-red-500 p-1 w-8 h-8 items-center justify-center rounded-full'>
+                      <MaterialCommunityIcons name="cash-minus" size={24} color="white" />
+                    </View>
+                  ):(
+                    <View className='bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full'>
+                      <MaterialCommunityIcons name="cash-plus" size={24} color="white" />
+                    </View>
+                  )}
+    
+                  <View className='items-start w-[60%]'>
+                    <Text className='text-sm font-bold'>{item.description}</Text>
+                  </View>
+    
+                  <View>
+                    <Text className='text-sm font-bold'> {item.type_transaction === 'Dépense' ? '-' : ''}{item.montant.toLocaleString('fr-FR')} FCFA</Text>
+                  </View>
+                </View>
+              )
+            })}
         </View>
       </ScrollView>
       {renderModal()}

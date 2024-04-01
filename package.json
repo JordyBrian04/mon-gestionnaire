@@ -39,7 +39,8 @@
     "shortid": "^2.2.16",
     "styled-components": "^6.1.8",
     "styled-system": "^5.1.5",
-    "expo-blur": "~12.9.2"
+    "expo-blur": "~12.9.2",
+    "expo-dev-client": "~3.3.11"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

@@ -4,10 +4,10 @@
     "slug": "MonGestionnaire",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/time.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/time.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -19,12 +19,19 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/time.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.jordy_brian.MonGestionnaire"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "7c61a098-950c-4bd3-96db-3eb6b40846d9"
+      }
+    },
+    "owner": "jordy_brian"
   }
 }

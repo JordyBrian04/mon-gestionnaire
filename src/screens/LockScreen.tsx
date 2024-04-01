@@ -18,6 +18,7 @@ const LockScreen = ({navigation}:any) => {
     const [code, setCode] = useState<any[]>([]);
     const [userNbr, setuserNbr] = useState(0)
     const [pass, setPass] = useState("")
+    
 
     const setPasscode = (codeSet: any) => {
 
@@ -81,7 +82,25 @@ const LockScreen = ({navigation}:any) => {
               console.error('Error creating table:', error);
               return false; // Retourne false en cas d'erreur
             }
-          )
+          );
+          tx.executeSql(
+          `CREATE TABLE IF NOT EXISTS transactions (
+            transaction_id INTEGER PRIMARY KEY AUTOINCREMENT, 
+            type_transaction varchar(20) NOT NULL,
+            description varchar(255) NOT NULL,
+            dates date NOT NULL,
+            montant INTEGER NOT NULL,
+            type_depense varchar(25) DEFAULT NULL
+            );`,
+            [],
+            (_, result) => {
+              console.log('transactions table created:', result)
+            },
+            (_, error) => {
+              console.error('Error creating transaction table:', error);
+              return false; // Retourne false en cas d'erreur
+            }
+          );
         });
       }
   
