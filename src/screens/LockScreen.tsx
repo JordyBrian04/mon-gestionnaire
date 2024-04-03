@@ -101,6 +101,22 @@ const LockScreen = ({navigation}:any) => {
               return false; // Retourne false en cas d'erreur
             }
           );
+          tx.executeSql(
+          `CREATE TABLE IF NOT EXISTS caisse (
+            caisse_id INTEGER PRIMARY KEY AUTOINCREMENT, 
+            description varchar(255) NOT NULL,
+            dates date NOT NULL,
+            montant INTEGER NOT NULL
+            );`,
+            [],
+            (_, result) => {
+              console.log('caisse table created:', result)
+            },
+            (_, error) => {
+              console.error('Error creating caisse table:', error);
+              return false; // Retourne false en cas d'erreur
+            }
+          );
         });
       }
   

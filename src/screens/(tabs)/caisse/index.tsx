@@ -7,17 +7,77 @@ import {
   TouchableWithoutFeedback,
   TextInput,
   ActivityIndicator,
-  Platform
+  Platform,
+  Alert
 } from 'react-native'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { AntDesign, FontAwesome5 } from '@expo/vector-icons'
 import DateTimePicker from '@react-native-community/datetimepicker'
+import { initDatabase } from '../../../components/database'
+
+const db = initDatabase()
 
 const Caisse = () => {
   const [showModal, setShowModal] = useState(false)
   const [date, setDate] = useState(new Date())
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [solde, setSolde] = useState(0)
+  const [data, setData] = useState<any[]>([])
+
+  const [caisseData, setCaisseData] = useState({
+    description: '',
+    dates: '',
+    montant: '',
+  })
+
+  const options: any = {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }
+
+  // console.log(date.toLocaleDateString('fr-FR', options))
+
+  const getData = async () => {
+    await db.transaction(tx => {
+      tx.executeSql(
+        `SELECT SUM(montant) AS solde FROM caisse;`,
+        [],
+        (_, result) => {
+          //console.log(result.rows._array);
+          setSolde(
+            result.rows._array[0].solde === null
+              ? 0
+              : result.rows._array[0].solde
+          )
+        },
+        (_, error) => {
+          console.error('Error query on caisse table:', error)
+          return false // Retourne false en cas d'erreur
+        }
+      );
+      tx.executeSql(
+        `SELECT * FROM caisse ORDER BY dates DESC;`,
+        [],
+        (_, result) => {
+          console.log(result.rows._array);
+          setData(
+            result.rows._array
+          )
+        },
+        (_, error) => {
+          console.error('Error query get data on caisse table:', error)
+          return false // Retourne false en cas d'erreur
+        }
+      );
+    })
+  }
+
+  useEffect(() => {
+    getData()
+    //console.log(labels)
+  }, [])
 
   const toggleDatePicker = () => {
     setOpen(!open)
@@ -32,6 +92,7 @@ const Caisse = () => {
         toggleDatePicker()
 
         //On attribu la date à la valeur date (currentDate.toLocaleDateString('fr-FR'))
+        setCaisseData({...caisseData, dates: currentDate.toISOString().substring(0, 10)})
         // setTache({
         //   ...tache,
         //   date: currentDate.toLocaleDateString('fr-FR', options)
@@ -39,6 +100,46 @@ const Caisse = () => {
       }
     } else {
       toggleDatePicker()
+    }
+  }
+
+  const handleAddCaisse = async () => {
+    if(caisseData.dates !== "" && caisseData.description !== "" && caisseData.montant !==""){
+      setLoading(true)
+      try {
+        await db.transaction(tx => {
+          tx.executeSql(
+            'INSERT INTO caisse(description, dates, montant) VALUES (?,?,?);',
+            [
+              caisseData.description,
+              caisseData.dates,
+              parseInt(caisseData.montant)
+            ],
+            (_, result) => {
+              if (result.rowsAffected >= 1) {
+                getData()
+                setShowModal(false)
+                setCaisseData({
+                  description: '',
+                  dates: '',
+                  montant: '',
+                })
+                setLoading(false)
+              }
+            },
+            (_, error) => {
+              setLoading(false)
+              console.log('Error inserting data:', error)
+              return false
+            }
+          )
+        })
+      } catch (error) {
+        console.error(error)
+      }
+
+    }else{
+      Alert.alert("Alert","Veuillez remplir tous les champs")
     }
   }
 
@@ -69,9 +170,8 @@ const Caisse = () => {
                           placeholder="Date"
                           className="border border-gray-300 p-3 rounded"
                           editable={false}
-                          //value={tache.date}
-                          //value={tache.date.toLocaleDateString('fr-FR', options)}
-                          //onChangeText={e => setTache({ ...tache, date: e })}
+                          value={caisseData.dates}
+                          onChangeText={e => setCaisseData({...caisseData, dates: e})} 
                         />
                       </TouchableOpacity>
                     )}
@@ -80,21 +180,21 @@ const Caisse = () => {
                 <TextInput
                   placeholder="Description"
                   className="border border-gray-300 p-3 rounded mb-2"
-                  //value={tache.titre}
-                  //onChangeText={e => setTache({ ...tache, titre: e })}
+                  value={caisseData.description}
+                  onChangeText={e => setCaisseData({...caisseData, description: e})} 
                 />
 
                 <TextInput
                   placeholder="Montant"
                   className="border border-gray-300 p-3 rounded mb-2"
                   keyboardType='numeric'
-                  //value={tache.titre}
-                  //onChangeText={e => setTache({ ...tache, titre: e })}
+                  value={caisseData.montant}
+                  onChangeText={e => setCaisseData({...caisseData, montant: e})} 
                 />
 
                 <TouchableOpacity
                   className="mt-4 mb-1 p-3 bg-black rounded-3xl"
-                  //onPress={handleAddTache}
+                  onPress={handleAddCaisse}
                 >
                   <Text className="text-white text-center font-bold text-[16px]">
                     {loading ? <ActivityIndicator /> : 'Ajouter'}
@@ -111,7 +211,7 @@ const Caisse = () => {
   return (
     <View className='flex-1 bg-slate-100 items-center'>
       <View className='w-full bg-blue-400 p-2 items-center justify-center h-[130] ' style={{borderBottomLeftRadius: 70, borderBottomRightRadius: 70}}>
-        <Text className='text-white font-bold text-3xl'>100 000 FCFA</Text>
+        <Text className='text-white font-bold text-3xl'>{solde.toLocaleString('fr-FR')} FCFA</Text>
         <Text className='text-white text-xl font-light'>Montant</Text>
       </View>
 
@@ -144,61 +244,22 @@ const Caisse = () => {
 
         <View className='mt-3 mb-2'>
 
-          <View className='flex-row rounded-2xl p-2 bg-slate-200 justify-between mb-2'>
+          {data.map((items, index) => {
+            const dat:Date = new Date(items.dates)
+            //console.log(dat.toLocaleDateString('fr-FR', options))
+            return (
+              <View key={index} className='flex-row rounded-2xl p-2 bg-slate-200 justify-between mb-2'>
 
-            <View>
-              <Text className='font-bold text-[15px]'>Epargne de janvier</Text>
-              <Text className='text-[15px] text-gray-600'>23 Jan 2024</Text>
-            </View>
-
-            <Text className='font-bold'>100 000 FCFA</Text>
-
-          </View>
-
-          <View className='flex-row rounded-2xl p-2 bg-slate-200 justify-between mb-2'>
-
-            <View>
-              <Text className='font-bold text-[15px]'>Epargne de janvier</Text>
-              <Text className='text-[15px] text-gray-600'>23 Jan 2024</Text>
-            </View>
-
-            <Text className='font-bold'>100 000 FCFA</Text>
-
-          </View>
-
-          <View className='flex-row rounded-2xl p-2 bg-slate-200 justify-between mb-2'>
-
-            <View>
-              <Text className='font-bold text-[15px]'>Epargne de janvier</Text>
-              <Text className='text-[15px] text-gray-600'>23 Jan 2024</Text>
-            </View>
-
-            <Text className='font-bold'>100 000 FCFA</Text>
-
-          </View>
-
-          <View className='flex-row rounded-2xl p-2 bg-slate-200 justify-between mb-2'>
-
-            <View>
-              <Text className='font-bold text-[15px]'>Epargne de janvier</Text>
-              <Text className='text-[15px] text-gray-600'>23 Jan 2024</Text>
-            </View>
-
-            <Text className='font-bold'>100 000 FCFA</Text>
-
-          </View>
-
-          <View className='flex-row rounded-2xl p-2 bg-slate-200 justify-between mb-2'>
-
-            <View>
-              <Text className='font-bold text-[15px]'>Epargne de janvier</Text>
-              <Text className='text-[15px] text-gray-600'>23 Jan 2024</Text>
-            </View>
-
-            <Text className='font-bold'>100 000 FCFA</Text>
-
-          </View>
-
+                <View>
+                  <Text className='font-bold text-[15px]'>{items.description}</Text>
+                  <Text className='text-[15px] text-gray-600'>{dat.toLocaleDateString('fr-FR', options)}</Text>
+                </View>
+    
+                <Text className='font-bold'>{items.montant.toLocaleString('fr-FR')} FCFA</Text>
+  
+              </View>
+            )
+          })}
         </View>
       </ScrollView>
       {renderModal()}

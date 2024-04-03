@@ -72,14 +72,6 @@ const Agenda = () => {
     { key: 2, value: 'Liste' }
   ]
 
-  function convertTimeToSortableFormat(timeString: any) {
-    console.log(timeString)
-    const parts = timeString.split(':')
-    const hours = parts[0]
-    const minutes = parts[1]
-    return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`
-  }
-
   const getData = async () => {
     await db.transaction(tx => {
       tx.executeSql(
@@ -143,7 +135,7 @@ const Agenda = () => {
   const onChange = ({ type }: any, selectedDate: any) => {
     if (type === 'set') {
       const currentDate = selectedDate
-      setDate(currentDate)
+      //setDate(currentDate)
 
       if (Platform.OS === 'android') {
         toggleDatePicker()

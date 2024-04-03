@@ -4,7 +4,8 @@ import {
   TouchableOpacity,
   ScrollView,
   TouchableWithoutFeedback,
-  Dimensions
+  Dimensions,
+  RefreshControl
 } from 'react-native'
 import React, {
   useMemo,
@@ -17,20 +18,164 @@ import { ProgressChart } from 'react-native-chart-kit'
 import moment from 'moment'
 import Swiper from 'react-native-swiper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { initDatabase } from '../components/database'
+
+const db = initDatabase()
 
 const Statistique = () => {
   const [affichage, setAffichage] = useState('Ventes')
   const [periode, setPeriode] = useState('Jour')
   const [value, setValue] = useState(new Date())
   const [currentMois, setMois] = useState('')
-  const [annee, setAnnee] = useState(0)
+  const [currentAnnee, setAnnee] = useState(value.getFullYear());
+  const [annees, setAnneeArray] = useState<any[]>([]);
+  const [datas, setDatas] = useState<any[]>([])
+  const [old_data, setOldData] = useState<any[]>([])
+  const [soldeDay, setSoldeDay] = useState(0)
   const scrollViewRef: any = useRef()
   const scrollMoisViewRef: any = useRef()
   const screenWidth = Dimensions.get('window').width
+  const [refresh, setRefreshing] = useState(false);
 
   const data = {
     labels: ['Transport', 'Nourriture', 'Autre'], // optional
     data: [0.4, 0.6, 0.8]
+  }
+
+  const refreshing = () => {
+    setRefreshing(true);
+
+    getData();
+
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 2000);
+  };
+
+  const getData = async () => {
+    await db.transaction(tx => {
+      tx.executeSql(
+        `SELECT description, montant, dates FROM transactions WHERE type_transaction='Entrée'`,
+        [],
+        (_, result) => {
+
+          setSoldeDay(result.rows._array
+            .filter(row => row.dates === value.toISOString().substring(0, 10))
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0))
+
+          setOldData(result.rows._array)
+
+          setDatas(
+            result.rows._array
+            .filter(row => row.dates === value.toISOString().substring(0, 10))
+            .map(datas => ({
+              dates: datas.dates,
+              description: datas.description,
+              montant: datas.montant
+            }))
+          )
+
+          setAnneeArray(result.rows._array.map(item => new Date(item.dates).getFullYear()))
+        },
+        (_, err) => {
+          console.error(err)
+          return false
+        }
+        
+        )
+    })
+  }
+
+  const onChangePeriode = (p:any) => {
+    setPeriode(p)
+
+    if(p === 'Jour'){
+      setDatas(
+        old_data
+       .filter(data => data.dates === value.toISOString().substring(0, 10))
+       .map(row => ({
+          dates: row.dates,
+          description: row.description,
+          montant: row.montant
+        }))
+      )
+
+      setSoldeDay(old_data
+        .filter(row => row.dates === value.toISOString().substring(0, 10))
+        .map(datas => datas.montant)
+        .reduce((a, b) => a + b, 0))
+    }
+
+    if(p === 'Mois'){
+
+      setDatas(
+        old_data
+       .filter(data => {
+          const date = new Date(data.dates);
+          return date.toLocaleDateString('fr-FR', optionsMois) === currentMois;
+        })
+       .map(row => ({
+          dates: row.dates,
+          description: row.description,
+          montant: row.montant
+        }))
+      )
+
+       setSoldeDay(old_data
+        .filter(row => {
+          const date = new Date(row.dates);
+          return date.toLocaleDateString('fr-FR', optionsMois) === currentMois;
+        })
+        .map(datas => datas.montant)
+        .reduce((a, b) => a + b, 0))
+    }
+
+
+  }
+
+  const handleOnDateChange = (val:any) => {
+    console.log(val)
+    if(periode === 'Jour'){
+
+        setSoldeDay(old_data
+          .filter(row => row.dates === val.toISOString().substring(0, 10))
+          .map(datas => datas.montant)
+          .reduce((a, b) => a + b, 0))
+    
+        setDatas(
+          old_data
+          .filter(row => row.dates === val.toISOString().substring(0, 10))
+          .map(datas => ({
+            dates: datas.dates,
+            description: datas.description,
+            montant: datas.montant
+          }))
+        )
+    }
+
+    if(periode === 'Mois'){
+      setSoldeDay(old_data
+        .filter(row => {
+          const date = new Date(row.dates);
+          return date.toLocaleDateString('fr-FR', optionsMois) === val;
+        })
+        .map(datas => datas.montant)
+        .reduce((a, b) => a + b, 0))
+
+      setDatas(
+        old_data
+       .filter(data => {
+          const date = new Date(data.dates);
+          return date.toLocaleDateString('fr-FR', optionsMois) === val;
+        })
+       .map(row => ({
+          dates: row.dates,
+          description: row.description,
+          montant: row.montant
+        }))
+      )
+    }
   }
 
   const mois = [
@@ -50,17 +195,20 @@ const Statistique = () => {
 
   useLayoutEffect(() => {
     if (scrollViewRef.current) {
-      scrollViewRef.current.scrollToEnd({ animated: true })
+      scrollViewRef.current.scrollToEnd({animated: true })
     }
   }, [])
 
   useEffect(() => {
     const currentMonthIndex = new Date().getMonth()
     setMois(new Date().toLocaleString('fr-FR', optionsMois))
+    setAnnee(value.getFullYear())
     const x = currentMonthIndex * 56 // ITEM_WIDTH est la largeur d'un élément dans votre ScrollView
     if (scrollMoisViewRef.current) {
       scrollMoisViewRef.current.scrollTo({ x, animated: true })
     }
+
+    getData()
   }, [])
 
   const options: any = {
@@ -142,7 +290,7 @@ const Statistique = () => {
       <View className="mt-2 mb-2 items-center justify-between flex-row p-3">
         <TouchableOpacity
           className="p-3 w-[25%] rounded-2xl items-center justify-center"
-          onPress={() => setPeriode('Jour')}
+          onPress={() => onChangePeriode('Jour')}
           style={{
             backgroundColor:
               periode === 'Jour'
@@ -177,7 +325,7 @@ const Statistique = () => {
                   : 'rgba(343,12,15, 0.2)'
                 : '#F2F2F2'
           }}
-          onPress={() => [setPeriode('Mois')]}
+          onPress={() => [onChangePeriode('Mois')]}
         >
           <Text
             style={{
@@ -204,7 +352,7 @@ const Statistique = () => {
                   : 'rgba(343,12,15, 0.2)'
                 : '#F2F2F2'
           }}
-          onPress={() => setPeriode('Année')}
+          onPress={() => onChangePeriode('Année')}
         >
           <Text
             style={{
@@ -223,7 +371,13 @@ const Statistique = () => {
       </View>
 
       {affichage === 'Ventes' ? (
-        <ScrollView className="h-full">
+        <ScrollView 
+          className="h-full"         
+          refreshControl={
+            <RefreshControl refreshing={refresh} onRefresh={refreshing} />
+          }
+        >
+
           {/* Date swiper */}
           {periode === 'Jour' ? (
             <View>
@@ -242,7 +396,8 @@ const Statistique = () => {
                           <TouchableWithoutFeedback
                             key={dateIndex}
                             onPress={() => [
-                              setValue(date.day)
+                              setValue(date.day), 
+                              handleOnDateChange(date.day)
                               // onChangeDate(
                               //   date.day.toLocaleDateString('fr-FR', options)
                               // )
@@ -273,17 +428,17 @@ const Statistique = () => {
                 </ScrollView>
               </View>
 
-              <View className="flex-row justify-between mt-2">
+              <View className="flex-row justify-between mt-2 mb-2">
                 <Text className="text-gray-600 text-sm font-bold">
                   {value.toLocaleDateString('fr-FR', options)}
                 </Text>
 
                 <Text className="text-gray-700 font-extrabold">
-                  10 000 FCFA
+                  {soldeDay.toLocaleString('fr-FR')} FCFA
                 </Text>
               </View>
 
-              <View className="mt-2">
+              {/* <View className="mt-2">
                 <ProgressChart
                   data={data}
                   width={screenWidth}
@@ -303,86 +458,42 @@ const Statistique = () => {
                   style={{ left: -50 }}
                   hideLegend={false}
                 />
-              </View>
+              </View> */}
 
               <Text className="font-bold text-lg mb-2">
                 Liste des transactions
               </Text>
 
-              {/* Entrée */}
-              <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                  <MaterialCommunityIcons
-                    name="cash-plus"
-                    size={24}
-                    color="white"
-                  />
-                </View>
+              <View>
+                {datas.length > 0  ? (
+                  <View>
+                    {datas.map((items, index) => {
+                      return (
+                        <View key={index} className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
+                          <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
+                            <MaterialCommunityIcons
+                              name="cash-plus"
+                              size={24}
+                              color="white"
+                            />
+                          </View>
 
-                <View className="items-start w-[60%]">
-                  <Text className="text-sm font-bold">Dépot</Text>
-                </View>
+                          <View className="items-start w-[60%]">
+                            <Text className="text-sm font-bold">{items.description}</Text>
+                          </View>
 
-                <View>
-                  <Text className="text-sm font-bold">10 800 FCFA</Text>
-                </View>
-              </View>
-
-              {/* Entrée */}
-              <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                  <MaterialCommunityIcons
-                    name="cash-plus"
-                    size={24}
-                    color="white"
-                  />
-                </View>
-
-                <View className="items-start w-[60%]">
-                  <Text className="text-sm font-bold">Dépot</Text>
-                </View>
-
-                <View>
-                  <Text className="text-sm font-bold">10 800 FCFA</Text>
-                </View>
-              </View>
-
-              {/* Entrée */}
-              <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                  <MaterialCommunityIcons
-                    name="cash-plus"
-                    size={24}
-                    color="white"
-                  />
-                </View>
-
-                <View className="items-start w-[60%]">
-                  <Text className="text-sm font-bold">Dépot</Text>
-                </View>
-
-                <View>
-                  <Text className="text-sm font-bold">10 800 FCFA</Text>
-                </View>
-              </View>
-
-              {/* Entrée */}
-              <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                  <MaterialCommunityIcons
-                    name="cash-plus"
-                    size={24}
-                    color="white"
-                  />
-                </View>
-
-                <View className="items-start w-[60%]">
-                  <Text className="text-sm font-bold">Dépot</Text>
-                </View>
-
-                <View>
-                  <Text className="text-sm font-bold">10 800 FCFA</Text>
-                </View>
+                          <View>
+                            <Text className="text-sm font-bold">{items.montant.toLocaleString('fr-FR')} FCFA</Text>
+                          </View>
+                        </View>
+                      )
+                    })}
+                  </View>
+                ):(
+                  <View>
+                    <Text className="text-sm font-bold">Aucune transaction</Text>
+                  </View>
+                )}
               </View>
             </View>
           ) : periode === 'Mois' ? (
@@ -398,7 +509,7 @@ const Statistique = () => {
                         style={{ paddingHorizontal: 8 }}
                       >
                         <TouchableWithoutFeedback
-                          onPress={() => setMois(month.value)}
+                          onPress={() => [setMois(month.value), handleOnDateChange(month.value)]}
                         >
                           <View
                             className="flex-1 h-14 w-11 mx-1 py-2 px-0 border border-slate-200 items-center justify-center flex-col rounded-lg"
@@ -424,212 +535,87 @@ const Statistique = () => {
                 </Text>
 
                 <Text className="text-gray-700 font-extrabold">
-                  10 000 FCFA
+                  {soldeDay.toLocaleString('fr-FR')} FCFA
                 </Text>
-              </View>
-
-              <View className="mt-2">
-                <ProgressChart
-                  data={data}
-                  width={screenWidth}
-                  height={220}
-                  strokeWidth={16}
-                  radius={32}
-                  chartConfig={{
-                    backgroundGradientFrom: '#fff',
-                    backgroundGradientFromOpacity: 0,
-                    backgroundGradientTo: '#fff',
-                    backgroundGradientToOpacity: 0.5,
-                    color: (opacity = 0.3) => `rgba(135,191,248, ${opacity})`,
-                    strokeWidth: 2, // optional, default 3
-                    barPercentage: 0.5,
-                    useShadowColorFromDataset: false // optional
-                  }}
-                  style={{ left: -50 }}
-                  hideLegend={false}
-                />
               </View>
 
               <Text className="font-bold text-lg mb-2">
                 Liste des transactions
               </Text>
 
-              {/* Entrée */}
-              <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                  <MaterialCommunityIcons
-                    name="cash-plus"
-                    size={24}
-                    color="white"
-                  />
-                </View>
+              <View>
+                {datas.length > 0  ? (
+                  <View>
+                    {datas.map((items, index) => {
+                      const dat = new Date(items.dates)
+                      return (
+                        <View key={index} className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
+                          <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
+                            <MaterialCommunityIcons
+                              name="cash-plus"
+                              size={24}
+                              color="white"
+                            />
+                          </View>
 
-                <View className="items-start w-[60%]">
-                  <Text className="text-sm font-bold">Dépot</Text>
-                </View>
+                          <View className="items-start w-[60%]">
+                            <Text className="text-sm font-bold">{items.description}</Text>
+                            <Text className="text-sm font-bold text-gray-500">{dat.toLocaleDateString('fr-FR', options)}</Text>
+                          </View>
 
-                <View>
-                  <Text className="text-sm font-bold">10 800 FCFA</Text>
-                </View>
-              </View>
-
-              {/* Entrée */}
-              <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                  <MaterialCommunityIcons
-                    name="cash-plus"
-                    size={24}
-                    color="white"
-                  />
-                </View>
-
-                <View className="items-start w-[60%]">
-                  <Text className="text-sm font-bold">Dépot</Text>
-                </View>
-
-                <View>
-                  <Text className="text-sm font-bold">10 800 FCFA</Text>
-                </View>
-              </View>
-
-              {/* Entrée */}
-              <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                  <MaterialCommunityIcons
-                    name="cash-plus"
-                    size={24}
-                    color="white"
-                  />
-                </View>
-
-                <View className="items-start w-[60%]">
-                  <Text className="text-sm font-bold">Dépot</Text>
-                </View>
-
-                <View>
-                  <Text className="text-sm font-bold">10 800 FCFA</Text>
-                </View>
-              </View>
-
-              {/* Entrée */}
-              <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                  <MaterialCommunityIcons
-                    name="cash-plus"
-                    size={24}
-                    color="white"
-                  />
-                </View>
-
-                <View className="items-start w-[60%]">
-                  <Text className="text-sm font-bold">Dépot</Text>
-                </View>
-
-                <View>
-                  <Text className="text-sm font-bold">10 800 FCFA</Text>
-                </View>
+                          <View>
+                            <Text className="text-sm font-bold">{items.montant.toLocaleString('fr-FR')} FCFA</Text>
+                          </View>
+                        </View>
+                      )
+                    })}
+                  </View>
+                ):(
+                  <View>
+                    <Text className="text-sm font-bold">Aucune transaction</Text>
+                  </View>
+                )}
               </View>
             </View>
           ) : periode === 'Année' ? (
             <View>
               <View className="flex-1 max-h-24">
-                <ScrollView horizontal={true}>
-                  <View
-                    //key={index}
-                    className="flex-row items-start justify-between mx-[-4] my-3"
-                    style={{ paddingHorizontal: 8 }}
-                  >
-                    <TouchableWithoutFeedback
-                    //onPress={() => setMois(month.value)}
-                    >
+                <ScrollView horizontal={true} ref={scrollMoisViewRef}>
+                  {annees.map((annee, index) => {
+                    const isActive = currentAnnee === annee
+                    return (
                       <View
-                        className="flex-1 h-14 w-11 mx-1 py-2 px-0 border border-slate-200 items-center justify-center flex-col rounded-lg"
-                        //style={isActive && { backgroundColor: '#D6D6D6' }}
+                        key={index}
+                        className="flex-row items-start justify-between mx-[-3] my-3"
+                        style={{ paddingHorizontal: 8 }}
                       >
-                        <Text
-                          className="text-gray-500 mb-0"
-                          //style={isActive && { color: '#111' }}
+                        <TouchableWithoutFeedback
+                          onPress={() => [setAnnee(annee), handleOnDateChange(annee)]}
                         >
-                          2022
-                        </Text>
+                          <View
+                            className="flex-1 h-14 w-11 mx-1 py-2 px-0 border border-slate-200 items-center justify-center flex-col rounded-lg"
+                            style={isActive && { backgroundColor: '#D6D6D6' }}
+                          >
+                            <Text
+                              className="text-gray-500 mb-0"
+                              style={isActive && { color: '#111' }}
+                            >
+                              {annee}
+                            </Text>
+                          </View>
+                        </TouchableWithoutFeedback>
                       </View>
-                    </TouchableWithoutFeedback>
-                  </View>
-
-                  <View
-                    //key={index}
-                    className="flex-row items-start justify-between mx-[-4] my-3"
-                    style={{ paddingHorizontal: 8 }}
-                  >
-                    <TouchableWithoutFeedback
-                    //onPress={() => setMois(month.value)}
-                    >
-                      <View
-                        className="flex-1 h-14 w-11 mx-1 py-2 px-0 border border-slate-200 items-center justify-center flex-col rounded-lg"
-                        //style={isActive && { backgroundColor: '#D6D6D6' }}
-                      >
-                        <Text
-                          className="text-gray-500 mb-0"
-                          //style={isActive && { color: '#111' }}
-                        >
-                          2023
-                        </Text>
-                      </View>
-                    </TouchableWithoutFeedback>
-                  </View>
-
-                  <View
-                    //key={index}
-                    className="flex-row items-start justify-between mx-[-4] my-3"
-                    style={{ paddingHorizontal: 8 }}
-                  >
-                    <TouchableWithoutFeedback
-                    //onPress={() => setMois(month.value)}
-                    >
-                      <View
-                        className="flex-1 bg-[#D6D6D6] h-14 w-11 mx-1 py-2 px-0 border border-slate-200 items-center justify-center flex-col rounded-lg"
-                        //style={isActive && { backgroundColor: '#D6D6D6' }}
-                      >
-                        <Text
-                          className="text-gray-500 mb-0"
-                          //style={isActive && { color: '#111' }}
-                        >
-                          2024
-                        </Text>
-                      </View>
-                    </TouchableWithoutFeedback>
-                  </View>
+                    )
+                  })}
                 </ScrollView>
               </View>
 
               <View className="flex-row justify-between mt-2">
-                <Text className="text-gray-600 text-sm font-bold">2024</Text>
+                <Text className="text-gray-600 text-sm font-bold">{currentAnnee}</Text>
 
                 <Text className="text-gray-700 font-extrabold">
-                  10 000 FCFA
+                  {soldeDay.toLocaleString('fr-FR')} FCFA
                 </Text>
-              </View>
-
-              <View className="mt-2">
-                <ProgressChart
-                  data={data}
-                  width={screenWidth}
-                  height={220}
-                  strokeWidth={16}
-                  radius={32}
-                  chartConfig={{
-                    backgroundGradientFrom: '#fff',
-                    backgroundGradientFromOpacity: 0,
-                    backgroundGradientTo: '#fff',
-                    backgroundGradientToOpacity: 0.5,
-                    color: (opacity = 0.3) => `rgba(135,191,248, ${opacity})`,
-                    strokeWidth: 2, // optional, default 3
-                    barPercentage: 0.5,
-                    useShadowColorFromDataset: false // optional
-                  }}
-                  style={{ left: -50 }}
-                  hideLegend={false}
-                />
               </View>
 
               <Text className="font-bold text-lg mb-2">
