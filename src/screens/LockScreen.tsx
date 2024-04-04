@@ -11,6 +11,7 @@ import { initDatabase } from '../components/database';
 //   () => { },
 //   error => console.log( error )
 // );
+
 const db = initDatabase()
 
 const LockScreen = ({navigation}:any) => {
@@ -18,6 +19,7 @@ const LockScreen = ({navigation}:any) => {
     const [code, setCode] = useState<any[]>([]);
     const [userNbr, setuserNbr] = useState(0)
     const [pass, setPass] = useState("")
+    const [nombres, setNombres] = useState<any[]>([]);
     
 
     const setPasscode = (codeSet: any) => {
@@ -39,94 +41,88 @@ const LockScreen = ({navigation}:any) => {
         setCode(prevCode => prevCode.slice(0, -1));
     };
 
+    const nombre = Array.from({ length: 10 }, (_, index) => ({
+      key: index,
+      value: index,
+    }));
+
 
     useEffect(() => {
       //console.log("remove")
       const createTable = async () => {
         db.transaction(tx => {
           tx.executeSql(
-            'CREATE TABLE IF NOT EXISTS param (id INTEGER PRIMARY KEY AUTOINCREMENT, code VARCHAR(10));',
+            'SELECT * FROM param;',
             [],
-            (_, result) => {
-              console.log('Query result:', result.rows.length); // Log the row count
-                tx.executeSql(
-                  'SELECT * FROM param;',
-                  [],
-                  (_, results) => {
-                    setuserNbr(results.rows.length)
-                    console.log('Query result:', results.rows.length); // Log the row count
-                    //console.log('Query result:', (results.rows._array[0].code.length)); // Log the row count
-                    if(results.rows.length > 0) {
+            (_, results) => {
+              setuserNbr(results.rows.length)
+              console.log('Query result:', results.rows.length); // Log the row count
+              //console.log('Query result:', (results.rows._array[0].code.length)); // Log the row count
+              if(results.rows.length > 0) {
 
-                      setPass(results.rows._array[0].code)
-                    }
-                  },
-                  (_, error) => {
-                    console.error('Error querying data:', error);
-                    return false
-                  }
-                );
+                setPass(results.rows._array[0].code)
+              }
             },
             (_, error) => {
-              console.error('Error creating table:', error);
-              return false; // Retourne false en cas d'erreur
+              console.error('Error querying data:', error);
+              return false
             }
           );
-          tx.executeSql(
-            'CREATE TABLE IF NOT EXISTS agenda (id INTEGER PRIMARY KEY AUTOINCREMENT, dates DATE, heure TIME, titre VARCHAR(200));',
-            [],
-            (_, result) => {
-              console.log('agenda table created:', result)
-            },
-            (_, error) => {
-              console.error('Error creating table:', error);
-              return false; // Retourne false en cas d'erreur
-            }
-          );
-          tx.executeSql(
-          `CREATE TABLE IF NOT EXISTS transactions (
-            transaction_id INTEGER PRIMARY KEY AUTOINCREMENT, 
-            type_transaction varchar(20) NOT NULL,
-            description varchar(255) NOT NULL,
-            dates date NOT NULL,
-            montant INTEGER NOT NULL,
-            type_depense varchar(25) DEFAULT NULL
-            );`,
-            [],
-            (_, result) => {
-              console.log('transactions table created:', result)
-            },
-            (_, error) => {
-              console.error('Error creating transaction table:', error);
-              return false; // Retourne false en cas d'erreur
-            }
-          );
-          tx.executeSql(
-          `CREATE TABLE IF NOT EXISTS caisse (
-            caisse_id INTEGER PRIMARY KEY AUTOINCREMENT, 
-            description varchar(255) NOT NULL,
-            dates date NOT NULL,
-            montant INTEGER NOT NULL
-            );`,
-            [],
-            (_, result) => {
-              console.log('caisse table created:', result)
-            },
-            (_, error) => {
-              console.error('Error creating caisse table:', error);
-              return false; // Retourne false en cas d'erreur
-            }
-          );
+          
+          // tx.executeSql(
+          //   'CREATE TABLE IF NOT EXISTS agenda (id INTEGER PRIMARY KEY AUTOINCREMENT, dates DATE, heure TIME, titre VARCHAR(200));',
+          //   [],
+          //   (_, result) => {
+          //     console.log('agenda table created:', result)
+          //   },
+          //   (_, error) => {
+          //     console.error('Error creating table:', error);
+          //     return false; // Retourne false en cas d'erreur
+          //   }
+          // );
+          // tx.executeSql(
+          // `CREATE TABLE IF NOT EXISTS transactions (
+          //   transaction_id INTEGER PRIMARY KEY AUTOINCREMENT, 
+          //   type_transaction varchar(20) NOT NULL,
+          //   description varchar(255) NOT NULL,
+          //   dates date NOT NULL,
+          //   montant INTEGER NOT NULL,
+          //   type_depense varchar(25) DEFAULT NULL
+          //   );`,
+          //   [],
+          //   (_, result) => {
+          //     console.log('transactions table created:', result)
+          //   },
+          //   (_, error) => {
+          //     console.error('Error creating transaction table:', error);
+          //     return false; // Retourne false en cas d'erreur
+          //   }
+          // );
+          // tx.executeSql(
+          // `CREATE TABLE IF NOT EXISTS caisse (
+          //   caisse_id INTEGER PRIMARY KEY AUTOINCREMENT, 
+          //   description varchar(255) NOT NULL,
+          //   dates date NOT NULL,
+          //   montant INTEGER NOT NULL
+          //   );`,
+          //   [],
+          //   (_, result) => {
+          //     console.log('caisse table created:', result)
+          //   },
+          //   (_, error) => {
+          //     console.error('Error creating caisse table:', error);
+          //     return false; // Retourne false en cas d'erreur
+          //   }
+          // );
         });
       }
+
+      setNombres(nombre.sort(() => Math.random() - 0.5))
   
       createTable()
     }, [])
 
-    const nombre = Array.from({ length: 10 }, (_, index) => ({
-        key: index,
-        value: index,
-    }));
+
 
     const handleValider = () =>{
         const passcode = code.join('')
@@ -205,7 +201,7 @@ const LockScreen = ({navigation}:any) => {
       </View>
 
       <View className='mt-14 flex-row flex-wrap items-center justify-center'>
-        {nombre.sort(() => Math.random() - 0.5).map(n => {
+        {nombres.map(n => {
               // Fonction de comparaison aléatoire pour le mélange
 
             return (

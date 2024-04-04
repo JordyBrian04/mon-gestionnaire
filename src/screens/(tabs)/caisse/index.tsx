@@ -8,12 +8,14 @@ import {
   TextInput,
   ActivityIndicator,
   Platform,
-  Alert
+  Alert,
+  BackHandler
 } from 'react-native'
 import React, { useState, useEffect } from 'react'
 import { AntDesign, FontAwesome5 } from '@expo/vector-icons'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { initDatabase } from '../../../components/database'
+import { useRoute } from '@react-navigation/native'
 
 const db = initDatabase()
 
@@ -24,6 +26,7 @@ const Caisse = () => {
   const [loading, setLoading] = useState(false)
   const [solde, setSolde] = useState(0)
   const [data, setData] = useState<any[]>([])
+  const route = useRoute()
 
   const [caisseData, setCaisseData] = useState({
     description: '',
@@ -78,6 +81,26 @@ const Caisse = () => {
     getData()
     //console.log(labels)
   }, [])
+
+
+
+  // useEffect(() => {
+  //   if(route.name === 'Caisse'){
+
+  //     const backAction = () => {
+  //       BackHandler.exitApp();
+  //       return true;
+  //     };
+    
+  //     const backHandler = BackHandler.addEventListener(
+  //       'hardwareBackPress',
+  //       backAction
+  //     );
+    
+  //     return () => backHandler.remove();
+      
+  //   }
+  // }, []);
 
   const toggleDatePicker = () => {
     setOpen(!open)

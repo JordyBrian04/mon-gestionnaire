@@ -9,7 +9,8 @@ import {
   TextInput,
   ActivityIndicator,
   Platform,
-  Alert
+  Alert,
+  BackHandler
 } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { AntDesign, MaterialCommunityIcons } from '@expo/vector-icons'
@@ -17,6 +18,7 @@ import { LineChart } from 'react-native-chart-kit'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { SelectList } from 'react-native-dropdown-select-list'
 import { initDatabase } from '../../../components/database'
+import { useRoute } from '@react-navigation/native';
 
 const db = initDatabase()
 
@@ -40,6 +42,9 @@ const Wallet = ({ navigation }: any) => {
     montant: '',
     type_depense: ''
   })
+  const route = useRoute();
+
+  //console.log(route.name)
 
   const toggleDatePicker = () => {
     setOpen(!open)
@@ -93,7 +98,7 @@ const Wallet = ({ navigation }: any) => {
         'SELECT * FROM transactions WHERE dates=?;',
         [date.toISOString().substring(0, 10)],
         (_, result) => {
-          console.log(result.rows._array)
+          //console.log(result.rows._array)
           setData(result.rows._array)
         },
         (_, error) => {
@@ -125,7 +130,7 @@ const Wallet = ({ navigation }: any) => {
         ORDER BY SUBSTR(dates, 1, 7) ASC;`,
         [],
         (_, result) => {
-          console.log(result.rows._array)
+          //console.log(result.rows._array)
           if (result.rows._array.length > 0) {
             setLabels(result.rows._array.map(item => item.Mois))
             setSoldeData(result.rows._array.map(item => item.solde))
@@ -147,6 +152,26 @@ const Wallet = ({ navigation }: any) => {
     getData()
     //console.log(labels)
   }, [])
+
+  // useEffect(() => {
+  //   if(route.name === 'Wallet'){
+
+  //     const backAction = () => {
+  //       BackHandler.exitApp();
+  //       return true;
+  //     };
+    
+  //     const backHandler = BackHandler.addEventListener(
+  //       'hardwareBackPress',
+  //       backAction
+  //     );
+    
+  //     return () => backHandler.remove();
+
+  //   }
+  // }, []);
+  
+
 
   const onChange = ({ type }: any, selectedDate: any) => {
     if (type === 'set') {

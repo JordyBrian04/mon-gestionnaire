@@ -6,7 +6,8 @@ import {
   ScrollView,
   Modal,
   Platform,
-  ActivityIndicator
+  ActivityIndicator,
+  BackHandler
 } from 'react-native'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import moment from 'moment'
@@ -17,6 +18,7 @@ import { AntDesign } from '@expo/vector-icons'
 import { TextInput } from 'react-native-gesture-handler'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { initDatabase } from '../../../components/database'
+import { useRoute } from '@react-navigation/native'
 
 const db = initDatabase()
 
@@ -33,12 +35,31 @@ const Agenda = () => {
   const [data, setData] = useState<any[]>([])
   const [old_data, setOldData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const route = useRoute()
 
   const [tache, setTache] = useState({
     titre: '',
     date: '',
     heure: ''
   })
+
+  // useEffect(() => {
+  //   if(route.name === 'Agenda'){
+
+  //     const backAction = () => {
+  //       BackHandler.exitApp();
+  //       return true;
+  //     };
+    
+  //     const backHandler = BackHandler.addEventListener(
+  //       'hardwareBackPress',
+  //       backAction
+  //     );
+    
+  //     return () => backHandler.remove();
+      
+  //   }
+  // }, []);
 
   const weeks = useMemo(() => {
     const start: any = moment(start).add(week, 'week').startOf('week')
@@ -216,6 +237,20 @@ const Agenda = () => {
   //   { time: '14:00', title: 'Event 4', description: 'Event 4 Description' },
   //   { time: '16:30', title: 'Event 5', description: 'Event 5 Description' }
   // ]
+
+  // useEffect(() => {
+  //   const backAction = () => {
+  //     BackHandler.exitApp();
+  //     return true;
+  //   };
+  
+  //   const backHandler = BackHandler.addEventListener(
+  //     'hardwareBackPress',
+  //     backAction
+  //   );
+  
+  //   return () => backHandler.remove();
+  // }, []);
 
   function renderModal() {
     return (

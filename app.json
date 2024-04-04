@@ -2,7 +2,7 @@
   "expo": {
     "name": "MonGestionnaire",
     "slug": "MonGestionnaire",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/time.png",
     "userInterfaceStyle": "light",

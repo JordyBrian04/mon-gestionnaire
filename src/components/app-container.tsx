@@ -75,7 +75,7 @@ const TabStackScreens = () => {
 const Appcontainer = () => {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Tabs">
+      <Stack.Navigator initialRouteName="LockScreen">
         <Stack.Screen
           options={{ headerShown: false }}
           name="LockScreen"

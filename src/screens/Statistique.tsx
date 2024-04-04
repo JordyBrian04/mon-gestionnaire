@@ -27,154 +27,783 @@ const Statistique = () => {
   const [periode, setPeriode] = useState('Jour')
   const [value, setValue] = useState(new Date())
   const [currentMois, setMois] = useState('')
-  const [currentAnnee, setAnnee] = useState(value.getFullYear());
-  const [annees, setAnneeArray] = useState<any[]>([]);
+  const [currentAnnee, setAnnee] = useState(value.getFullYear())
+  const [annees, setAnneeArray] = useState<any[]>([])
   const [datas, setDatas] = useState<any[]>([])
   const [old_data, setOldData] = useState<any[]>([])
+  const [allDepenses, setAllDepense] = useState<any[]>([])
+  const [depenses, setDepense] = useState<any[]>([])
   const [soldeDay, setSoldeDay] = useState(0)
   const scrollViewRef: any = useRef()
   const scrollMoisViewRef: any = useRef()
   const screenWidth = Dimensions.get('window').width
-  const [refresh, setRefreshing] = useState(false);
+  const [refresh, setRefreshing] = useState(false)
+  const [datesVente, setDatesVente] = useState<any[]>([])
+  const [labels, setLabels] = useState<any[]>([])
+  const [labelsValue, setLabelsValue] = useState<any[]>([])
 
-  const data = {
-    labels: ['Transport', 'Nourriture', 'Autre'], // optional
-    data: [0.4, 0.6, 0.8]
-  }
+  // const data = {
+  //   labels: ['Transport', 'Nourriture', 'Autre'], // optional
+  //   data: [0.4, 0.6, 0.8]
+  // }
 
   const refreshing = () => {
-    setRefreshing(true);
+    setRefreshing(true)
 
-    getData();
+    getData()
 
     setTimeout(() => {
-      setRefreshing(false);
-    }, 2000);
-  };
+      setRefreshing(false)
+    }, 2000)
+  }
 
   const getData = async () => {
+    setSoldeDay(0)
+    setOldData([])
+    setDatas([])
+    setAnneeArray([])
+
     await db.transaction(tx => {
       tx.executeSql(
         `SELECT description, montant, dates FROM transactions WHERE type_transaction='Entrée'`,
         [],
         (_, result) => {
-
-          setSoldeDay(result.rows._array
-            .filter(row => row.dates === value.toISOString().substring(0, 10))
-            .map(datas => datas.montant)
-            .reduce((a, b) => a + b, 0))
+          setSoldeDay(
+            result.rows._array
+              .filter(row => row.dates === value.toISOString().substring(0, 10))
+              .map(datas => datas.montant)
+              .reduce((a, b) => a + b, 0)
+          )
 
           setOldData(result.rows._array)
 
           setDatas(
             result.rows._array
-            .filter(row => row.dates === value.toISOString().substring(0, 10))
-            .map(datas => ({
-              dates: datas.dates,
-              description: datas.description,
-              montant: datas.montant
-            }))
+              .filter(row => row.dates === value.toISOString().substring(0, 10))
+              .map(datas => ({
+                dates: datas.dates,
+                description: datas.description,
+                montant: datas.montant
+              }))
           )
 
-          setAnneeArray(result.rows._array.map(item => new Date(item.dates).getFullYear()))
+          // setAnneeArray(
+          //   result.rows._array.map(item => new Date(item.dates).getFullYear())
+          // )
+
+          const uniqueTypes = new Set();
+
+          // Parcourir les données et ajouter chaque type_depense à l'ensemble
+          result.rows._array.forEach(item => {
+            uniqueTypes.add(new Date(item.dates).getFullYear());
+          });
+
+          // Convertir l'ensemble en tableau pour l'affichage ou le traitement ultérieur
+          const uniqueTypesArray = Array.from(uniqueTypes);
+
+          setAnneeArray(uniqueTypesArray)
+          //console.log('annee ',uniqueTypesArray)
         },
         (_, err) => {
           console.error(err)
           return false
         }
-        
-        )
+      )
+      tx.executeSql(
+        `SELECT DISTINCT dates FROM transactions WHERE type_transaction='Entrée' ORDER BY dates ASC`,
+        [],
+        (_, result) => {
+          //console.log(result.rows._array)
+          setDatesVente(result.rows._array)
+        },
+        (_, err) => {
+          console.error(err)
+          return false
+        }
+      )
+      tx.executeSql(
+        `SELECT description, montant, dates, type_depense FROM transactions WHERE type_transaction='Dépense'`,
+        [],
+        (_, result) => {
+          //console.log(result.rows._array);
+          setDepense(result.rows._array)
+
+          // Créer un ensemble (Set) pour stocker les types de dépenses uniques
+          // const uniqueTypes = new Set();
+
+          // // Parcourir les données et ajouter chaque type_depense à l'ensemble
+          // result.rows._array.forEach(item => {
+          //   uniqueTypes.add(item.type_depense);
+          // });
+
+          // // Convertir l'ensemble en tableau pour l'affichage ou le traitement ultérieur
+          // const uniqueTypesArray = Array.from(uniqueTypes);
+
+          // setLabels(uniqueTypesArray);
+
+          // const filteredData = uniqueTypesArray.map(unique => {
+          //   return result.rows._array
+          //     .filter(item => item.type_depense === unique)
+          //     .map(datas => datas.montant)
+          //     .reduce((a, b) => a + b, 0)
+          //     // .map(item => ({
+          //     //   montant: item.montant,
+          //     //   //dates: item.dates,
+          //     //   type_depense: item.type_depense
+          //     // }));
+          // });
+
+          // setLabelsValue(filteredData);
+        },
+        (_, err) => {
+          console.error(err)
+          return false
+        }
+      )
     })
   }
 
-  const onChangePeriode = (p:any) => {
-    setPeriode(p)
-
-    if(p === 'Jour'){
-      setDatas(
-        old_data
-       .filter(data => data.dates === value.toISOString().substring(0, 10))
-       .map(row => ({
-          dates: row.dates,
-          description: row.description,
-          montant: row.montant
-        }))
-      )
-
-      setSoldeDay(old_data
-        .filter(row => row.dates === value.toISOString().substring(0, 10))
-        .map(datas => datas.montant)
-        .reduce((a, b) => a + b, 0))
-    }
-
-    if(p === 'Mois'){
-
-      setDatas(
-        old_data
-       .filter(data => {
-          const date = new Date(data.dates);
-          return date.toLocaleDateString('fr-FR', optionsMois) === currentMois;
-        })
-       .map(row => ({
-          dates: row.dates,
-          description: row.description,
-          montant: row.montant
-        }))
-      )
-
-       setSoldeDay(old_data
-        .filter(row => {
-          const date = new Date(row.dates);
-          return date.toLocaleDateString('fr-FR', optionsMois) === currentMois;
-        })
-        .map(datas => datas.montant)
-        .reduce((a, b) => a + b, 0))
-    }
-
-
+  const onChangeAffichage = (aff: any) => {
+    setAffichage(aff)
+    onChangePeriode('Jour', aff)
   }
 
-  const handleOnDateChange = (val:any) => {
-    console.log(val)
-    if(periode === 'Jour'){
+  const onChangePeriode = (p: any, af: any) => {
+    setPeriode(p)
+    //console.log(af)
 
-        setSoldeDay(old_data
-          .filter(row => row.dates === val.toISOString().substring(0, 10))
-          .map(datas => datas.montant)
-          .reduce((a, b) => a + b, 0))
-    
+    if (af === 'Ventes') {
+      if (p === 'Jour') {
         setDatas(
           old_data
-          .filter(row => row.dates === val.toISOString().substring(0, 10))
-          .map(datas => ({
-            dates: datas.dates,
-            description: datas.description,
-            montant: datas.montant
-          }))
+            .filter(data => data.dates === value.toISOString().substring(0, 10))
+            .map(row => ({
+              dates: row.dates,
+              description: row.description,
+              montant: row.montant
+            }))
         )
+
+        setSoldeDay(
+          old_data
+            .filter(row => row.dates === value.toISOString().substring(0, 10))
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        )
+      }
+
+      if (p === 'Mois') {
+        setDatas(
+          old_data
+            .filter(data => {
+              const date = new Date(data.dates)
+              return (
+                date.toLocaleDateString('fr-FR', optionsMois) === currentMois
+              )
+            })
+            .map(row => ({
+              dates: row.dates,
+              description: row.description,
+              montant: row.montant
+            }))
+        )
+
+        setSoldeDay(
+          old_data
+            .filter(row => {
+              const date = new Date(row.dates)
+              return (
+                date.toLocaleDateString('fr-FR', optionsMois) === currentMois
+              )
+            })
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        )
+      }
+
+      if (p === 'Année') {
+        setDatas(
+          old_data
+            .filter(data => {
+              const date = new Date(data.dates)
+              return date.getFullYear() === currentAnnee
+            })
+            .map(row => ({
+              dates: row.dates,
+              description: row.description,
+              montant: row.montant
+            }))
+        )
+
+        setSoldeDay(
+          old_data
+            .filter(row => {
+              const date = new Date(row.dates)
+              return date.getFullYear() === currentAnnee
+            })
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        )
+      }
     }
 
-    if(periode === 'Mois'){
-      setSoldeDay(old_data
-        .filter(row => {
-          const date = new Date(row.dates);
-          return date.toLocaleDateString('fr-FR', optionsMois) === val;
-        })
-        .map(datas => datas.montant)
-        .reduce((a, b) => a + b, 0))
+    if (af === 'Dépenses') {
+      if (p === 'Jour') {
+        setDatas(
+          depenses
+            .filter(data => data.dates === value.toISOString().substring(0, 10))
+            .map(row => ({
+              dates: row.dates,
+              description: row.description,
+              montant: row.montant
+            }))
+        )
 
-      setDatas(
-        old_data
-       .filter(data => {
-          const date = new Date(data.dates);
-          return date.toLocaleDateString('fr-FR', optionsMois) === val;
+        setSoldeDay(
+          depenses
+            .filter(row => row.dates === value.toISOString().substring(0, 10))
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        )
+
+        const soldDay = depenses
+          .filter(row => row.dates === value.toISOString().substring(0, 10))
+          .map(datas => datas.montant)
+          .reduce((a, b) => a + b, 0)
+
+        const uniqueTypes = new Set()
+
+        // Parcourir les données et ajouter chaque type_depense à l'ensemble
+        depenses
+          .filter(row => row.dates === value.toISOString().substring(0, 10))
+          .forEach(item => {
+            uniqueTypes.add(item.type_depense)
+          })
+
+        // Convertir l'ensemble en tableau pour l'affichage ou le traitement ultérieur
+        const uniqueTypesArray = Array.from(uniqueTypes)
+
+        setLabels(uniqueTypesArray)
+
+        const dayData = depenses
+          .filter(data => data.dates === value.toISOString().substring(0, 10))
+          .map(row => ({
+            dates: row.dates,
+            description: row.description,
+            montant: row.montant,
+            type_depense: row.type_depense
+          }))
+
+        const filteredData = uniqueTypesArray.map(unique => {
+          return dayData
+            .filter(item => item.type_depense === unique)
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
         })
-       .map(row => ({
-          dates: row.dates,
-          description: row.description,
-          montant: row.montant
-        }))
-      )
+
+        console.log(
+          filteredData.map(f => Math.round((f / soldDay) * 100) / 100)
+        )
+
+        setLabelsValue(
+          filteredData.map(f => Math.round((f / soldDay) * 100) / 100)
+        )
+        //console.log(filteredData)
+      }
+
+      if (p === 'Mois') {
+        setDatas(
+          depenses
+            .filter(data => {
+              const date = new Date(data.dates)
+              return (
+                date.toLocaleDateString('fr-FR', optionsMois) === currentMois
+              )
+            })
+            .map(row => ({
+              dates: row.dates,
+              description: row.description,
+              montant: row.montant
+            }))
+        )
+
+        setSoldeDay(
+          depenses
+            .filter(row => {
+              const date = new Date(row.dates)
+              return (
+                date.toLocaleDateString('fr-FR', optionsMois) === currentMois
+              )
+            })
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        )
+
+        const uniqueTypes = new Set()
+
+        // Parcourir les données et ajouter chaque type_depense à l'ensemble
+        depenses
+          .filter(row => {
+            const date = new Date(row.dates)
+            return date.toLocaleDateString('fr-FR', optionsMois) === currentMois
+          })
+          .forEach(item => {
+            uniqueTypes.add(item.type_depense)
+          })
+
+        // Convertir l'ensemble en tableau pour l'affichage ou le traitement ultérieur
+        const uniqueTypesArray = Array.from(uniqueTypes)
+
+        setLabels(uniqueTypesArray)
+
+        const soldDay = depenses
+          .filter(row => {
+            const date = new Date(row.dates)
+            return date.toLocaleDateString('fr-FR', optionsMois) === currentMois
+          })
+          .map(datas => datas.montant)
+          .reduce((a, b) => a + b, 0)
+
+        const dayData = depenses
+          .filter(row => {
+            const date = new Date(row.dates)
+            return date.toLocaleDateString('fr-FR', optionsMois) === currentMois
+          })
+          .map(row => ({
+            dates: row.dates,
+            description: row.description,
+            montant: row.montant,
+            type_depense: row.type_depense
+          }))
+
+        const filteredData = uniqueTypesArray.map(unique => {
+          return dayData
+            .filter(item => item.type_depense === unique)
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        })
+
+        console.log(
+          filteredData.map(f => Math.round((f / soldDay) * 100) / 100)
+        )
+
+        setLabelsValue(
+          filteredData.map(f => Math.round((f / soldDay) * 100) / 100)
+        )
+      }
+
+      if (p === 'Année') {
+        setDatas(
+          depenses
+            .filter(data => {
+              const date = new Date(data.dates)
+              return date.getFullYear() === currentAnnee
+            })
+            .map(row => ({
+              dates: row.dates,
+              description: row.description,
+              montant: row.montant
+            }))
+        )
+
+        setSoldeDay(
+          depenses
+            .filter(row => {
+              const date = new Date(row.dates)
+              return date.getFullYear() === currentAnnee
+            })
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        )
+
+        const uniqueTypes = new Set()
+
+        // Parcourir les données et ajouter chaque type_depense à l'ensemble
+        depenses
+          .filter(row => {
+            const date = new Date(row.dates)
+            return date.getFullYear() === currentAnnee
+          })
+          .forEach(item => {
+            uniqueTypes.add(item.type_depense)
+          })
+
+        // Convertir l'ensemble en tableau pour l'affichage ou le traitement ultérieur
+        const uniqueTypesArray = Array.from(uniqueTypes)
+
+        setLabels(uniqueTypesArray)
+
+        const soldDay = depenses
+          .filter(row => {
+            const date = new Date(row.dates)
+            return date.getFullYear() === currentAnnee
+          })
+          .map(datas => datas.montant)
+          .reduce((a, b) => a + b, 0)
+
+        const dayData = depenses
+          .filter(row => {
+            const date = new Date(row.dates)
+            return date.getFullYear() === currentAnnee
+          })
+          .map(row => ({
+            dates: row.dates,
+            description: row.description,
+            montant: row.montant,
+            type_depense: row.type_depense
+          }))
+
+        const filteredData = uniqueTypesArray.map(unique => {
+          return dayData
+            .filter(item => item.type_depense === unique)
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        })
+
+        console.log(
+          filteredData.map(f => Math.round((f / soldDay) * 100) / 100)
+        )
+
+        setLabelsValue(
+          filteredData.map(f => Math.round((f / soldDay) * 100) / 100)
+        )
+      }
+    }
+  }
+
+  const handleOnDateChange = (val: any) => {
+
+    if(affichage === 'Ventes'){
+
+      if (periode === 'Jour') {
+        setSoldeDay(
+          old_data
+            .filter(row => row.dates === val.toISOString().substring(0, 10))
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        )
+  
+        setDatas(
+          old_data
+            .filter(row => row.dates === val.toISOString().substring(0, 10))
+            .map(datas => ({
+              dates: datas.dates,
+              description: datas.description,
+              montant: datas.montant
+            }))
+        )
+      }
+  
+      if (periode === 'Mois') {
+        setSoldeDay(
+          old_data
+            .filter(row => {
+              const date = new Date(row.dates)
+              return date.toLocaleDateString('fr-FR', optionsMois) === val
+            })
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        )
+  
+        const uniqueTypes = new Set()
+  
+        // Parcourir les données et ajouter chaque type_depense à l'ensemble
+        old_data
+          .filter(row => {
+            const date = new Date(row.dates)
+            return date.toLocaleDateString('fr-FR', optionsMois) === val
+          })
+          .forEach(item => {
+            uniqueTypes.add(item.dates)
+          })
+  
+        // Convertir l'ensemble en tableau pour l'affichage ou le traitement ultérieur
+        const uniqueTypesArray = Array.from(uniqueTypes)
+  
+        setDatesVente(uniqueTypesArray.map(uniqueTypes => ({
+          dates: uniqueTypes
+        })))
+  
+        //console.log(uniqueTypesArray.map((uniqueTypes:any) => new Date(uniqueTypes)))
+  
+        setDatas(
+          old_data
+            .filter(data => {
+              const date = new Date(data.dates)
+              return date.toLocaleDateString('fr-FR', optionsMois) === val
+            })
+            .map(row => ({
+              dates: row.dates,
+              description: row.description,
+              montant: row.montant
+            }))
+        )
+      }
+  
+      if (periode === 'Année') {
+        setSoldeDay(
+          old_data
+            .filter(row => {
+              const date = new Date(row.dates)
+              return date.getFullYear() === val
+            })
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        )
+  
+        setDatas(
+          old_data
+            .filter(data => {
+              const date = new Date(data.dates)
+              return date.getFullYear() === val
+            })
+            .map(row => ({
+              dates: row.dates,
+              description: row.description,
+              montant: row.montant
+            }))
+        )
+      }
+    }
+
+    if(affichage === 'Dépenses'){
+
+      if (periode === 'Jour') {
+        setSoldeDay(
+          depenses
+            .filter(row => row.dates === val.toISOString().substring(0, 10))
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        )
+  
+        setDatas(
+          depenses
+            .filter(row => row.dates === val.toISOString().substring(0, 10))
+            .map(datas => ({
+              dates: datas.dates,
+              description: datas.description,
+              montant: datas.montant
+            }))
+        )
+
+        const soldDay = depenses
+          .filter(row => row.dates === val.toISOString().substring(0, 10))
+          .map(datas => datas.montant)
+          .reduce((a, b) => a + b, 0)
+
+        const uniqueTypes = new Set()
+
+        // Parcourir les données et ajouter chaque type_depense à l'ensemble
+        depenses
+          .filter(row => row.dates === val.toISOString().substring(0, 10))
+          .forEach(item => {
+            uniqueTypes.add(item.type_depense)
+          })
+
+        // Convertir l'ensemble en tableau pour l'affichage ou le traitement ultérieur
+        const uniqueTypesArray = Array.from(uniqueTypes)
+
+        setLabels(uniqueTypesArray)
+
+        const dayData = depenses
+          .filter(data => data.dates === val.toISOString().substring(0, 10))
+          .map(row => ({
+            dates: row.dates,
+            description: row.description,
+            montant: row.montant,
+            type_depense: row.type_depense
+          }))
+
+        const filteredData = uniqueTypesArray.map(unique => {
+          return dayData
+            .filter(item => item.type_depense === unique)
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        })
+
+        console.log(
+          filteredData.map(f => Math.round((f / soldDay) * 100) / 100)
+        )
+
+        setLabelsValue(
+          filteredData.map(f => Math.round((f / soldDay) * 100) / 100)
+        )
+      }
+  
+      if (periode === 'Mois') {
+        setSoldeDay(
+          depenses
+            .filter(row => {
+              const date = new Date(row.dates)
+              return date.toLocaleDateString('fr-FR', optionsMois) === val
+            })
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        )
+  
+        const uniqueTypes = new Set()
+  
+        // Parcourir les données et ajouter chaque type_depense à l'ensemble
+        depenses
+          .filter(row => {
+            const date = new Date(row.dates)
+            return date.toLocaleDateString('fr-FR', optionsMois) === val
+          })
+          .forEach(item => {
+            uniqueTypes.add(item.dates)
+          })
+  
+        // Convertir l'ensemble en tableau pour l'affichage ou le traitement ultérieur
+        const uniqueTypesArray = Array.from(uniqueTypes)
+  
+        setDatesVente(uniqueTypesArray.map(uniqueTypes => ({
+          dates: uniqueTypes
+        })))
+  
+        //console.log(uniqueTypesArray.map((uniqueTypes:any) => new Date(uniqueTypes)))
+  
+        setDatas(
+          depenses
+            .filter(data => {
+              const date = new Date(data.dates)
+              return date.toLocaleDateString('fr-FR', optionsMois) === val
+            })
+            .map(row => ({
+              dates: row.dates,
+              description: row.description,
+              montant: row.montant
+            }))
+        )
+
+        const soldDay = depenses
+        .filter(row => {
+          const date = new Date(row.dates)
+          return date.toLocaleDateString('fr-FR', optionsMois) === val
+        })
+          .map(datas => datas.montant)
+          .reduce((a, b) => a + b, 0)
+
+        const uniqueTypes1 = new Set()
+
+        // Parcourir les données et ajouter chaque type_depense à l'ensemble
+        depenses
+        .filter(row => {
+          const date = new Date(row.dates)
+          return date.toLocaleDateString('fr-FR', optionsMois) === val
+        })
+          .forEach(item => {
+            uniqueTypes1.add(item.type_depense)
+          })
+
+        // Convertir l'ensemble en tableau pour l'affichage ou le traitement ultérieur
+        const uniqueTypesArray1 = Array.from(uniqueTypes1)
+
+        setLabels(uniqueTypesArray1)
+
+        const dayData = depenses
+        .filter(row => {
+          const date = new Date(row.dates)
+          return date.toLocaleDateString('fr-FR', optionsMois) === val
+        })
+          .map(row => ({
+            dates: row.dates,
+            description: row.description,
+            montant: row.montant,
+            type_depense: row.type_depense
+          }))
+
+        const filteredData = uniqueTypesArray1.map(unique => {
+          return dayData
+            .filter(item => item.type_depense === unique)
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        })
+
+        console.log(
+          filteredData.map(f => Math.round((f / soldDay) * 100) / 100)
+        )
+
+        setLabelsValue(
+          filteredData.map(f => Math.round((f / soldDay) * 100) / 100)
+        )
+      }
+  
+      if (periode === 'Année') {
+        setSoldeDay(
+          depenses
+            .filter(row => {
+              const date = new Date(row.dates)
+              return date.getFullYear() === val
+            })
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        )
+  
+        setDatas(
+          depenses
+            .filter(data => {
+              const date = new Date(data.dates)
+              return date.getFullYear() === val
+            })
+            .map(row => ({
+              dates: row.dates,
+              description: row.description,
+              montant: row.montant
+            }))
+        )
+
+        const soldDay = depenses
+        .filter(row => {
+          const date = new Date(row.dates)
+          return date.getFullYear() === val
+        })
+          .map(datas => datas.montant)
+          .reduce((a, b) => a + b, 0)
+
+        const uniqueTypes1 = new Set()
+
+        // Parcourir les données et ajouter chaque type_depense à l'ensemble
+        depenses
+        .filter(row => {
+          const date = new Date(row.dates)
+          return date.getFullYear() === val
+        })
+          .forEach(item => {
+            uniqueTypes1.add(item.type_depense)
+          })
+
+        // Convertir l'ensemble en tableau pour l'affichage ou le traitement ultérieur
+        const uniqueTypesArray1 = Array.from(uniqueTypes1)
+
+        setLabels(uniqueTypesArray1)
+
+        const dayData = depenses
+        .filter(row => {
+          const date = new Date(row.dates)
+          return date.getFullYear() === val
+        })
+          .map(row => ({
+            dates: row.dates,
+            description: row.description,
+            montant: row.montant,
+            type_depense: row.type_depense
+          }))
+
+        const filteredData = uniqueTypesArray1.map(unique => {
+          return dayData
+            .filter(item => item.type_depense === unique)
+            .map(datas => datas.montant)
+            .reduce((a, b) => a + b, 0)
+        })
+
+        console.log(
+          filteredData.map(f => Math.round((f / soldDay) * 100) / 100)
+        )
+
+        setLabelsValue(
+          filteredData.map(f => Math.round((f / soldDay) * 100) / 100)
+        )
+      }
     }
   }
 
@@ -195,7 +824,7 @@ const Statistique = () => {
 
   useLayoutEffect(() => {
     if (scrollViewRef.current) {
-      scrollViewRef.current.scrollToEnd({animated: true })
+      scrollViewRef.current.scrollToEnd({ animated: true })
     }
   }, [])
 
@@ -254,7 +883,7 @@ const Statistique = () => {
       <View className="mt-2 items-center justify-between flex-row">
         <TouchableOpacity
           className="p-3 w-[45%] rounded-2xl items-center justify-center"
-          onPress={() => setAffichage('Dépenses')}
+          onPress={() => onChangeAffichage('Ventes')}
           style={{
             backgroundColor: affichage === 'Ventes' ? '#4C9FF3' : '#F2F2F2'
           }}
@@ -274,7 +903,7 @@ const Statistique = () => {
           style={{
             backgroundColor: affichage === 'Dépenses' ? '#4C9FF3' : '#F2F2F2'
           }}
-          onPress={() => setAffichage('Dépenses')}
+          onPress={() => onChangeAffichage('Dépenses')}
         >
           <Text
             style={{
@@ -290,7 +919,7 @@ const Statistique = () => {
       <View className="mt-2 mb-2 items-center justify-between flex-row p-3">
         <TouchableOpacity
           className="p-3 w-[25%] rounded-2xl items-center justify-center"
-          onPress={() => onChangePeriode('Jour')}
+          onPress={() => onChangePeriode('Jour', affichage)}
           style={{
             backgroundColor:
               periode === 'Jour'
@@ -325,7 +954,7 @@ const Statistique = () => {
                   : 'rgba(343,12,15, 0.2)'
                 : '#F2F2F2'
           }}
-          onPress={() => [onChangePeriode('Mois')]}
+          onPress={() => [onChangePeriode('Mois', affichage)]}
         >
           <Text
             style={{
@@ -352,7 +981,7 @@ const Statistique = () => {
                   : 'rgba(343,12,15, 0.2)'
                 : '#F2F2F2'
           }}
-          onPress={() => onChangePeriode('Année')}
+          onPress={() => onChangePeriode('Année', affichage)}
         >
           <Text
             style={{
@@ -371,13 +1000,12 @@ const Statistique = () => {
       </View>
 
       {affichage === 'Ventes' ? (
-        <ScrollView 
-          className="h-full"         
+        <ScrollView
+          className="h-full"
           refreshControl={
             <RefreshControl refreshing={refresh} onRefresh={refreshing} />
           }
         >
-
           {/* Date swiper */}
           {periode === 'Jour' ? (
             <View>
@@ -396,7 +1024,7 @@ const Statistique = () => {
                           <TouchableWithoutFeedback
                             key={dateIndex}
                             onPress={() => [
-                              setValue(date.day), 
+                              setValue(date.day),
                               handleOnDateChange(date.day)
                               // onChangeDate(
                               //   date.day.toLocaleDateString('fr-FR', options)
@@ -465,11 +1093,14 @@ const Statistique = () => {
               </Text>
 
               <View>
-                {datas.length > 0  ? (
+                {datas.length > 0 ? (
                   <View>
                     {datas.map((items, index) => {
                       return (
-                        <View key={index} className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
+                        <View
+                          key={index}
+                          className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full"
+                        >
                           <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
                             <MaterialCommunityIcons
                               name="cash-plus"
@@ -479,19 +1110,25 @@ const Statistique = () => {
                           </View>
 
                           <View className="items-start w-[60%]">
-                            <Text className="text-sm font-bold">{items.description}</Text>
+                            <Text className="text-sm font-bold">
+                              {items.description}
+                            </Text>
                           </View>
 
                           <View>
-                            <Text className="text-sm font-bold">{items.montant.toLocaleString('fr-FR')} FCFA</Text>
+                            <Text className="text-sm font-bold">
+                              {items.montant.toLocaleString('fr-FR')} FCFA
+                            </Text>
                           </View>
                         </View>
                       )
                     })}
                   </View>
-                ):(
+                ) : (
                   <View>
-                    <Text className="text-sm font-bold">Aucune transaction</Text>
+                    <Text className="text-sm font-bold">
+                      Aucune transaction
+                    </Text>
                   </View>
                 )}
               </View>
@@ -509,7 +1146,10 @@ const Statistique = () => {
                         style={{ paddingHorizontal: 8 }}
                       >
                         <TouchableWithoutFeedback
-                          onPress={() => [setMois(month.value), handleOnDateChange(month.value)]}
+                          onPress={() => [
+                            setMois(month.value),
+                            handleOnDateChange(month.value)
+                          ]}
                         >
                           <View
                             className="flex-1 h-14 w-11 mx-1 py-2 px-0 border border-slate-200 items-center justify-center flex-col rounded-lg"
@@ -544,35 +1184,58 @@ const Statistique = () => {
               </Text>
 
               <View>
-                {datas.length > 0  ? (
+                {datas.length > 0 ? (
                   <View>
-                    {datas.map((items, index) => {
-                      const dat = new Date(items.dates)
+                    {datesVente.map((d, index) => {
+                      const day = new Date(d.dates)
+                      const details = old_data.filter(da =>
+                        da.dates.includes(d.dates)
+                      )
                       return (
-                        <View key={index} className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                          <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                            <MaterialCommunityIcons
-                              name="cash-plus"
-                              size={24}
-                              color="white"
-                            />
-                          </View>
+                        <View key={index}>
+                          <Text className="text-sm">
+                            {day.toLocaleDateString('fr-FR', options)}
+                          </Text>
+                          <View className="mt-3">
+                            {details.map((items, index) => {
+                              return (
+                                <View
+                                  key={index}
+                                  className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full"
+                                >
+                                  <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
+                                    <MaterialCommunityIcons
+                                      name="cash-plus"
+                                      size={24}
+                                      color="white"
+                                    />
+                                  </View>
 
-                          <View className="items-start w-[60%]">
-                            <Text className="text-sm font-bold">{items.description}</Text>
-                            <Text className="text-sm font-bold text-gray-500">{dat.toLocaleDateString('fr-FR', options)}</Text>
-                          </View>
+                                  <View className="items-start w-[60%]">
+                                    <Text className="text-sm font-bold">
+                                      {items.description}
+                                    </Text>
+                                  </View>
 
-                          <View>
-                            <Text className="text-sm font-bold">{items.montant.toLocaleString('fr-FR')} FCFA</Text>
+                                  <View>
+                                    <Text className="text-sm font-bold">
+                                      {items.montant.toLocaleString('fr-FR')}{' '}
+                                      FCFA
+                                    </Text>
+                                  </View>
+                                </View>
+                              )
+                            })}
                           </View>
                         </View>
                       )
                     })}
                   </View>
-                ):(
+                ) : (
                   <View>
-                    <Text className="text-sm font-bold">Aucune transaction</Text>
+                    <Text className="text-sm font-bold">
+                      Aucune transaction
+                    </Text>
                   </View>
                 )}
               </View>
@@ -590,7 +1253,10 @@ const Statistique = () => {
                         style={{ paddingHorizontal: 8 }}
                       >
                         <TouchableWithoutFeedback
-                          onPress={() => [setAnnee(annee), handleOnDateChange(annee)]}
+                          onPress={() => [
+                            setAnnee(annee),
+                            handleOnDateChange(annee)
+                          ]}
                         >
                           <View
                             className="flex-1 h-14 w-11 mx-1 py-2 px-0 border border-slate-200 items-center justify-center flex-col rounded-lg"
@@ -611,7 +1277,9 @@ const Statistique = () => {
               </View>
 
               <View className="flex-row justify-between mt-2">
-                <Text className="text-gray-600 text-sm font-bold">{currentAnnee}</Text>
+                <Text className="text-gray-600 text-sm font-bold">
+                  {currentAnnee}
+                </Text>
 
                 <Text className="text-gray-700 font-extrabold">
                   {soldeDay.toLocaleString('fr-FR')} FCFA
@@ -622,80 +1290,45 @@ const Statistique = () => {
                 Liste des transactions
               </Text>
 
-              {/* Entrée */}
-              <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                  <MaterialCommunityIcons
-                    name="cash-plus"
-                    size={24}
-                    color="white"
-                  />
-                </View>
+              <View>
+                {datas.length > 0 ? (
+                  <View>
+                    {datas.map((items, index) => {
+                      return (
+                        <View
+                          key={index}
+                          className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full"
+                        >
+                          <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
+                            <MaterialCommunityIcons
+                              name="cash-plus"
+                              size={24}
+                              color="white"
+                            />
+                          </View>
 
-                <View className="items-start w-[60%]">
-                  <Text className="text-sm font-bold">Dépot</Text>
-                </View>
+                          <View className="items-start w-[60%]">
+                            <Text className="text-sm font-bold">
+                              {items.description}
+                            </Text>
+                          </View>
 
-                <View>
-                  <Text className="text-sm font-bold">10 800 FCFA</Text>
-                </View>
-              </View>
-
-              {/* Entrée */}
-              <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                  <MaterialCommunityIcons
-                    name="cash-plus"
-                    size={24}
-                    color="white"
-                  />
-                </View>
-
-                <View className="items-start w-[60%]">
-                  <Text className="text-sm font-bold">Dépot</Text>
-                </View>
-
-                <View>
-                  <Text className="text-sm font-bold">10 800 FCFA</Text>
-                </View>
-              </View>
-
-              {/* Entrée */}
-              <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                  <MaterialCommunityIcons
-                    name="cash-plus"
-                    size={24}
-                    color="white"
-                  />
-                </View>
-
-                <View className="items-start w-[60%]">
-                  <Text className="text-sm font-bold">Dépot</Text>
-                </View>
-
-                <View>
-                  <Text className="text-sm font-bold">10 800 FCFA</Text>
-                </View>
-              </View>
-
-              {/* Entrée */}
-              <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                <View className="bg-green-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                  <MaterialCommunityIcons
-                    name="cash-plus"
-                    size={24}
-                    color="white"
-                  />
-                </View>
-
-                <View className="items-start w-[60%]">
-                  <Text className="text-sm font-bold">Dépot</Text>
-                </View>
-
-                <View>
-                  <Text className="text-sm font-bold">10 800 FCFA</Text>
-                </View>
+                          <View>
+                            <Text className="text-sm font-bold">
+                              {items.montant.toLocaleString('fr-FR')} FCFA
+                            </Text>
+                          </View>
+                        </View>
+                      )
+                    })}
+                  </View>
+                ) : (
+                  <View>
+                    <Text className="text-sm font-bold">
+                      Aucune transaction
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
           ) : null}
@@ -721,7 +1354,8 @@ const Statistique = () => {
                           <TouchableWithoutFeedback
                             key={dateIndex}
                             onPress={() => [
-                              setValue(date.day)
+                              setValue(date.day),
+                              handleOnDateChange(date.day)
                               // onChangeDate(
                               //   date.day.toLocaleDateString('fr-FR', options)
                               // )
@@ -758,13 +1392,16 @@ const Statistique = () => {
                 </Text>
 
                 <Text className="text-[#F30C0F] font-extrabold">
-                  10 000 FCFA
+                  {soldeDay.toLocaleString('fr-FR')} FCFA
                 </Text>
               </View>
 
               <View className="mt-2">
                 <ProgressChart
-                  data={data}
+                  data={{
+                    labels: labels, // optional
+                    data: labelsValue
+                  }}
                   width={screenWidth}
                   height={220}
                   strokeWidth={16}
@@ -779,7 +1416,7 @@ const Statistique = () => {
                     barPercentage: 0.5,
                     useShadowColorFromDataset: false // optional
                   }}
-                  style={{ left: -50 }}
+                  style={{ left: -55 }}
                   hideLegend={false}
                 />
               </View>
@@ -789,45 +1426,45 @@ const Statistique = () => {
               </Text>
 
               <View>
-                {/* Dépense */}
-                <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                  <View className="bg-red-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                    <MaterialCommunityIcons
-                      name="cash-minus"
-                      size={24}
-                      color="white"
-                    />
-                  </View>
-
-                  <View className="items-start w-[60%]">
-                    <Text className="text-sm font-bold">Transport</Text>
-                  </View>
-
+                {datas.length > 0 ? (
                   <View>
-                    <Text className="text-sm font-bold">-800 FCFA</Text>
-                  </View>
-                </View>
+                    {datas.map((items, index) => {
+                      return (
+                        <View
+                          key={index}
+                          className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full"
+                        >
+                          <View className="bg-red-500 p-1 w-8 h-8 items-center justify-center rounded-full">
+                            <MaterialCommunityIcons
+                              name="cash-minus"
+                              size={24}
+                              color="white"
+                            />
+                          </View>
 
-                {/* Dépense */}
-                <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                  <View className="bg-red-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                    <MaterialCommunityIcons
-                      name="cash-minus"
-                      size={24}
-                      color="white"
-                    />
-                  </View>
+                          <View className="items-start w-[60%]">
+                            <Text className="text-sm font-bold">
+                              {items.description}
+                            </Text>
+                          </View>
 
-                  <View className="items-start w-[60%]">
-                    <Text className="text-sm font-bold">Transport</Text>
+                          <View>
+                            <Text className="text-sm font-bold">
+                              {items.montant.toLocaleString('fr-FR')} FCFA
+                            </Text>
+                          </View>
+                        </View>
+                      )
+                    })}
                   </View>
-
+                ) : (
                   <View>
-                    <Text className="text-sm font-bold">-800 FCFA</Text>
+                    <Text className="text-sm font-bold">
+                      Aucune transaction
+                    </Text>
                   </View>
-                </View>
+                )}
               </View>
-
             </View>
           ) : periode === 'Mois' ? (
             <View>
@@ -842,7 +1479,10 @@ const Statistique = () => {
                         style={{ paddingHorizontal: 8 }}
                       >
                         <TouchableWithoutFeedback
-                          onPress={() => setMois(month.value)}
+                          onPress={() => [
+                            setMois(month.value),
+                            handleOnDateChange(month.value)
+                          ]}
                         >
                           <View
                             className="flex-1 h-14 w-11 mx-1 py-2 px-0 border border-slate-200 items-center justify-center flex-col rounded-lg"
@@ -868,14 +1508,17 @@ const Statistique = () => {
                 </Text>
 
                 <Text className="text-[#F30C0F] font-extrabold">
-                  10 000 FCFA
+                  {soldeDay.toLocaleString('fr-FR')} FCFA
                 </Text>
               </View>
 
               {/* ProgressChart */}
               <View className="mt-2">
                 <ProgressChart
-                  data={data}
+                  data={{
+                    labels: labels, // optional
+                    data: labelsValue
+                  }}
                   width={screenWidth}
                   height={220}
                   strokeWidth={16}
@@ -900,129 +1543,99 @@ const Statistique = () => {
               </Text>
 
               <View>
-                {/* Dépense */}
-                <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                  <View className="bg-red-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                    <MaterialCommunityIcons
-                      name="cash-minus"
-                      size={24}
-                      color="white"
-                    />
-                  </View>
-
-                  <View className="items-start w-[60%]">
-                    <Text className="text-sm font-bold">Transport</Text>
-                  </View>
-
+                {datas.length > 0 ? (
                   <View>
-                    <Text className="text-sm font-bold">-800 FCFA</Text>
-                  </View>
-                </View>
+                    {datas.map((items, index) => {
+                      return (
+                        <View
+                          key={index}
+                          className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full"
+                        >
+                          <View className="bg-red-500 p-1 w-8 h-8 items-center justify-center rounded-full">
+                            <MaterialCommunityIcons
+                              name="cash-minus"
+                              size={24}
+                              color="white"
+                            />
+                          </View>
 
-                {/* Dépense */}
-                <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                  <View className="bg-red-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                    <MaterialCommunityIcons
-                      name="cash-minus"
-                      size={24}
-                      color="white"
-                    />
-                  </View>
+                          <View className="items-start w-[60%]">
+                            <Text className="text-sm font-bold">
+                              {items.description}
+                            </Text>
+                          </View>
 
-                  <View className="items-start w-[60%]">
-                    <Text className="text-sm font-bold">Transport</Text>
+                          <View>
+                            <Text className="text-sm font-bold">
+                              {items.montant.toLocaleString('fr-FR')} FCFA
+                            </Text>
+                          </View>
+                        </View>
+                      )
+                    })}
                   </View>
-
+                ) : (
                   <View>
-                    <Text className="text-sm font-bold">-800 FCFA</Text>
+                    <Text className="text-sm font-bold">
+                      Aucune transaction
+                    </Text>
                   </View>
-                </View>
+                )}
               </View>
             </View>
           ) : periode === 'Année' ? (
             <View>
               <View className="flex-1 max-h-24">
                 <ScrollView horizontal={true}>
-                  <View
-                    //key={index}
-                    className="flex-row items-start justify-between mx-[-4] my-3"
-                    style={{ paddingHorizontal: 8 }}
-                  >
-                    <TouchableWithoutFeedback
-                    //onPress={() => setMois(month.value)}
-                    >
+                  {annees.map((annee, index) => {
+                    const isActive = currentAnnee === annee
+                    return (
                       <View
-                        className="flex-1 h-14 w-11 mx-1 py-2 px-0 border border-slate-200 items-center justify-center flex-col rounded-lg"
-                        //style={isActive && { backgroundColor: '#D6D6D6' }}
+                        key={index}
+                        className="flex-row items-start justify-between mx-[-3] my-3"
+                        style={{ paddingHorizontal: 8 }}
                       >
-                        <Text
-                          className="text-gray-500 mb-0"
-                          //style={isActive && { color: '#111' }}
+                        <TouchableWithoutFeedback
+                          onPress={() => [
+                            setAnnee(annee),
+                            handleOnDateChange(annee)
+                          ]}
                         >
-                          2022
-                        </Text>
+                          <View
+                            className="flex-1 h-14 w-11 mx-1 py-2 px-0 border border-slate-200 items-center justify-center flex-col rounded-lg"
+                            style={isActive && { backgroundColor: '#D6D6D6' }}
+                          >
+                            <Text
+                              className="text-gray-500 mb-0"
+                              style={isActive && { color: '#111' }}
+                            >
+                              {annee}
+                            </Text>
+                          </View>
+                        </TouchableWithoutFeedback>
                       </View>
-                    </TouchableWithoutFeedback>
-                  </View>
-
-                  <View
-                    //key={index}
-                    className="flex-row items-start justify-between mx-[-4] my-3"
-                    style={{ paddingHorizontal: 8 }}
-                  >
-                    <TouchableWithoutFeedback
-                    //onPress={() => setMois(month.value)}
-                    >
-                      <View
-                        className="flex-1 h-14 w-11 mx-1 py-2 px-0 border border-slate-200 items-center justify-center flex-col rounded-lg"
-                        //style={isActive && { backgroundColor: '#D6D6D6' }}
-                      >
-                        <Text
-                          className="text-gray-500 mb-0"
-                          //style={isActive && { color: '#111' }}
-                        >
-                          2023
-                        </Text>
-                      </View>
-                    </TouchableWithoutFeedback>
-                  </View>
-
-                  <View
-                    //key={index}
-                    className="flex-row items-start justify-between mx-[-4] my-3"
-                    style={{ paddingHorizontal: 8 }}
-                  >
-                    <TouchableWithoutFeedback
-                    //onPress={() => setMois(month.value)}
-                    >
-                      <View
-                        className="flex-1 bg-[#D6D6D6] h-14 w-11 mx-1 py-2 px-0 border border-slate-200 items-center justify-center flex-col rounded-lg"
-                        //style={isActive && { backgroundColor: '#D6D6D6' }}
-                      >
-                        <Text
-                          className="text-gray-500 mb-0"
-                          //style={isActive && { color: '#111' }}
-                        >
-                          2024
-                        </Text>
-                      </View>
-                    </TouchableWithoutFeedback>
-                  </View>
+                    )
+                  })}
                 </ScrollView>
               </View>
 
               <View className="flex-row justify-between mt-2">
-                <Text className="text-gray-600 text-sm font-bold">2024</Text>
+                <Text className="text-gray-600 text-sm font-bold">
+                  {currentAnnee}
+                </Text>
 
                 <Text className="text-[#F30C0F] font-extrabold">
-                  10 000 FCFA
+                  {soldeDay.toLocaleString('fr-FR')} FCFA
                 </Text>
               </View>
 
               {/* ProgressChart */}
               <View className="mt-2">
                 <ProgressChart
-                  data={data}
+                  data={{
+                    labels: labels, // optional
+                    data: labelsValue
+                  }}
                   width={screenWidth}
                   height={220}
                   strokeWidth={16}
@@ -1047,43 +1660,44 @@ const Statistique = () => {
               </Text>
 
               <View>
-                {/* Dépense */}
-                <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                  <View className="bg-red-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                    <MaterialCommunityIcons
-                      name="cash-minus"
-                      size={24}
-                      color="white"
-                    />
-                  </View>
-
-                  <View className="items-start w-[60%]">
-                    <Text className="text-sm font-bold">Transport</Text>
-                  </View>
-
+                {datas.length > 0 ? (
                   <View>
-                    <Text className="text-sm font-bold">-800 FCFA</Text>
-                  </View>
-                </View>
+                    {datas.map((items, index) => {
+                      return (
+                        <View
+                          key={index}
+                          className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full"
+                        >
+                          <View className="bg-red-500 p-1 w-8 h-8 items-center justify-center rounded-full">
+                            <MaterialCommunityIcons
+                              name="cash-minus"
+                              size={24}
+                              color="white"
+                            />
+                          </View>
 
-                {/* Dépense */}
-                <View className="flex-row items-center justify-between bg-slate-200 p-3 mb-3 rounded-full">
-                  <View className="bg-red-500 p-1 w-8 h-8 items-center justify-center rounded-full">
-                    <MaterialCommunityIcons
-                      name="cash-minus"
-                      size={24}
-                      color="white"
-                    />
-                  </View>
+                          <View className="items-start w-[60%]">
+                            <Text className="text-sm font-bold">
+                              {items.description}
+                            </Text>
+                          </View>
 
-                  <View className="items-start w-[60%]">
-                    <Text className="text-sm font-bold">Transport</Text>
+                          <View>
+                            <Text className="text-sm font-bold">
+                              {items.montant.toLocaleString('fr-FR')} FCFA
+                            </Text>
+                          </View>
+                        </View>
+                      )
+                    })}
                   </View>
-
+                ) : (
                   <View>
-                    <Text className="text-sm font-bold">-800 FCFA</Text>
+                    <Text className="text-sm font-bold">
+                      Aucune transaction
+                    </Text>
                   </View>
-                </View>
+                )}
               </View>
             </View>
           ) : null}
