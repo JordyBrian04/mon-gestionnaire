@@ -1,9 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import AppContainer from './src/components/app-container';
 import * as GestureHandle from 'react-native-gesture-handler';
 import { initDatabase } from './src/components/database';
 import { useEffect } from 'react';
+import Notification from './src/services/notifications';
+import * as Calendar from 'expo-calendar';
 
 const db = initDatabase()
 
@@ -11,19 +13,39 @@ export default function App() {
 
   useEffect(() => {
 
+    (async () => {
+      const { status } = await Calendar.requestCalendarPermissionsAsync();
+      if (status === 'granted') {
+        const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+        // console.log('Here are all your calendars:');
+        // console.log({ calendars });
+      }
+    })();
+
     const migrations = [
       `
       CREATE TABLE IF NOT EXISTS param (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         code VARCHAR(10)
       )`,
+
+      `
+        ALTER TABLE param ADD nom VARCHAR(100)
+      `,
     
       `
       CREATE TABLE IF NOT EXISTS agenda (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        dates DATE, heure TIME, titre VARCHAR(200)
+        dates DATE, 
+        heure TIME, 
+        titre VARCHAR(200),
+        calendarId VARCHAR(255) DEFAULT NULL
       )
       `,
+
+      `
+      ALTER TABLE agenda ADD calendarId VARCHAR(255) DEFAULT NULL
+    `,
     
       `CREATE TABLE IF NOT EXISTS transactions (
         transaction_id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -32,14 +54,22 @@ export default function App() {
         dates date NOT NULL,
         montant INTEGER NOT NULL,
         type_depense varchar(25) DEFAULT NULL
-      )`,
+      );`,
     
       `CREATE TABLE IF NOT EXISTS caisse (
         caisse_id INTEGER PRIMARY KEY AUTOINCREMENT, 
         description varchar(255) NOT NULL,
         dates date NOT NULL,
         montant INTEGER NOT NULL
-        );`
+        );`,
+
+      `CREATE TABLE IF NOT EXISTS notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        title VARCHAR(200), 
+        content LONGTEXT, 
+        date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        epingle INTEGER DEFAULT 0
+      );`
       // Ajouter d'autres scripts de migration ici
     ];
 
@@ -70,21 +100,27 @@ export default function App() {
             }
           }
         );
+        // tx.executeSql(
+        //   `SELECT * FROM sqlite_master WHERE type='table' AND name='agenda';`,
+        //   [],
+        //   (_, { rows: { _array } }) => {
+        //     console.log(_array)
+        //   }
+        //   // (_, { rows: { _array } }) => {
+        //   //   console.log(_array)
+        //   // }
+        // );
       });
     }
 
     executeMigrations();
   }, [])
+
+  
   return (
-    <AppContainer/>
+    <>
+      <AppContainer/>
+      {/* <Notification/> */}
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

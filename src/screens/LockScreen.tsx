@@ -1,6 +1,8 @@
-import { View, Text, SafeAreaView, TouchableOpacity, Alert } from 'react-native'
+import { View, Text, SafeAreaView, TouchableOpacity, Alert, Modal, TextInput, Platform, Dimensions } from 'react-native'
 import React, { useState, useEffect } from 'react'
 import { initDatabase } from '../components/database';
+import { StatusBar } from 'expo-status-bar'
+import { storeNom } from '../services/AsyncStorage';
 
 // const db = SQLite.openDatabase(
 //   {
@@ -20,6 +22,9 @@ const LockScreen = ({navigation}:any) => {
     const [userNbr, setuserNbr] = useState(0)
     const [pass, setPass] = useState("")
     const [nombres, setNombres] = useState<any[]>([]);
+    const [nom, setNom] = useState("")
+    const [showModal, setShowModal] = useState(false)
+    const [nomInput, setNomInput] = useState("")
     
 
     const setPasscode = (codeSet: any) => {
@@ -56,11 +61,15 @@ const LockScreen = ({navigation}:any) => {
             [],
             (_, results) => {
               setuserNbr(results.rows.length)
-              console.log('Query result:', results.rows.length); // Log the row count
-              //console.log('Query result:', (results.rows._array[0].code.length)); // Log the row count
+              console.log('Query result:', results.rows._array); // Log the row count
+              //console.log('Query result:', (results.rows._array[0].nom === null ? "" : results.rows._array[0].nom)); // Log the row count
               if(results.rows.length > 0) {
-
                 setPass(results.rows._array[0].code)
+                setNom(results.rows._array[0].nom === null ? "" : results.rows._array[0].nom)
+
+                if(results.rows._array[0].code !== null && results.rows._array[0].nom === null){
+                  setShowModal(true)
+                }
               }
             },
             (_, error) => {
@@ -68,18 +77,8 @@ const LockScreen = ({navigation}:any) => {
               return false
             }
           );
-          
-          // tx.executeSql(
-          //   'CREATE TABLE IF NOT EXISTS agenda (id INTEGER PRIMARY KEY AUTOINCREMENT, dates DATE, heure TIME, titre VARCHAR(200));',
-          //   [],
-          //   (_, result) => {
-          //     console.log('agenda table created:', result)
-          //   },
-          //   (_, error) => {
-          //     console.error('Error creating table:', error);
-          //     return false; // Retourne false en cas d'erreur
-          //   }
-          // );
+
+  
           // tx.executeSql(
           // `CREATE TABLE IF NOT EXISTS transactions (
           //   transaction_id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -126,17 +125,23 @@ const LockScreen = ({navigation}:any) => {
 
     const handleValider = () =>{
         const passcode = code.join('')
+
+        if(nom === "" && nomInput === ""){setShowModal(true); return}
+        console.log('ok')
+
         if(code.length > 0){
-          if(userNbr === 0){
+
+          if(userNbr === 0 && nom === ""){
               //setLoading(true)
               db.transaction(tx => {
                 tx.executeSql(
-                  'INSERT INTO param (code) VALUES (?);',
-                  [passcode],
+                  'INSERT INTO param (code, nom) VALUES (?, ?);',
+                  [passcode, nomInput],
                   (_, result) => {
                   //   storeUser(userInfo.username)
                   //   setLoading(false)
                     console.log(result)
+                    storeNom(nomInput)
                     setCode([])
                     navigation.navigate("Tabs")
                   },
@@ -151,11 +156,12 @@ const LockScreen = ({navigation}:any) => {
               //setLoading(true)
               db.transaction(tx => {
                 tx.executeSql(
-                  'SELECT id FROM param WHERE code=?;',
+                  'SELECT id, nom FROM param WHERE code=?;',
                   [passcode],
                   (_, result) => {
-                    console.log(result, passcode)
+                    //console.log(result, passcode)
                     if(result.rows.length > 0){
+                      storeNom(result.rows._array[0].nom)
                       // storeUser(userInfo.username)
                       // setLoading(false)
                       setCode([])
@@ -179,10 +185,68 @@ const LockScreen = ({navigation}:any) => {
 
     }
 
+    
+    const handleValideNom = () => {
+      //console.log(nomInput, nom)
+      if(nom === "" && nomInput !== ""){
+        db.transaction(tx => {
+          tx.executeSql(
+            'UPDATE param SET nom=?;',
+            [nomInput],
+            (_, result) => {
+              console.log(result)
+              if(result.rowsAffected > 0){
+                storeNom(nomInput)
+                setShowModal(false)
+              }else{
+                
+                setNomInput("")
+                //setLoading(false)
+              }
+            },
+            (_, error) => {
+              console.error('Error inserting data:', error);
+              return false;
+            }
+          );
+        });
+      }else{
+        Alert.alert("Informations non saisie","Veuillez saisir un nom")
+      }
+    }
+
+    function renderModal () {
+      return (
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={showModal}
+          onRequestClose={() => setShowModal(false)}
+        >
+          <View className='bg-black/20 flex-1 items-center justify-center'>
+            <View className='bg-white w-[90%] p-4 rounded-lg'>
+              <Text>Entrez votre nom</Text>
+              <TextInput
+                className='bg-slate-100 border border-slate-200 rounded-lg p-3 mt-2'
+                onChangeText={(text) => setNomInput(text)}
+                value={nomInput}
+              />
+
+              <TouchableOpacity className='mt-3 p-3 items-center justify-center bg-gray-800 rounded-2xl' 
+                onPress={() => [nom === "" && userNbr > 0 ? handleValideNom() : handleValider()]}>
+                <Text className='text-white font-bold'>Valider</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )
+    }
+
 
 
   return (
     <SafeAreaView className='flex-1 pt-7 pr-4 pl-4 bg-gray-800 items-center justify-center'>
+      <StatusBar style='light' />
       <Text className='color-white text-xl font-bold'>
         {userNbr === 0 ? 'Créez un nouveau mot de passe' : 'Entrez votre code'}
       </Text>
@@ -200,7 +264,7 @@ const LockScreen = ({navigation}:any) => {
         <View className='w-3 h-3 border border-white' style={{ borderRadius: 100 }}></View> */}
       </View>
 
-      <View className='mt-14 flex-row flex-wrap items-center justify-center'>
+      <View className='mt-14 flex-row flex-wrap items-center justify-center' style={{width: Platform.OS === 'ios' ? '90%' : Dimensions.get('window').width}}>
         {nombres.map(n => {
               // Fonction de comparaison aléatoire pour le mélange
 
@@ -255,6 +319,7 @@ const LockScreen = ({navigation}:any) => {
         </TouchableOpacity>
 
       </View>
+      {renderModal()}
     </SafeAreaView>
   ) 
 }

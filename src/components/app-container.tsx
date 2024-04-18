@@ -1,4 +1,4 @@
-import { View, Text } from 'react-native'
+import { View, Text, Platform } from 'react-native'
 import React from 'react'
 import { NavigationContainer } from '@react-navigation/native'
 import { createStackNavigator } from '@react-navigation/stack'
@@ -11,6 +11,8 @@ import LockScreen from '../screens/LockScreen'
 import Agenda from '../screens/(tabs)/agenda';
 import Wallet from '../screens/(tabs)/wallet';
 import Caisse from '../screens/(tabs)/caisse';
+import Notes from '../screens/(tabs)/notes';
+import Parametre from '../screens/(tabs)/parametre';
 import Statistique from '../screens/Statistique';
 
 const Stack = createStackNavigator()
@@ -26,6 +28,9 @@ const screenOptions = ({route}:any) => ({
       case "Agenda":
         icon = "calendar";
         break;
+      case "Notes":
+        icon = "filetext1";
+        break;
       case "Wallet":
         icon = "wallet";
         break;
@@ -35,9 +40,9 @@ const screenOptions = ({route}:any) => ({
       // case "Statistique":
       //   icon = "chart-bar";
       //   break;
-      // case "Parametre":
-      //   icon = "tools";
-      //   break;
+      case "Parametre":
+        icon = "setting";
+        break;
     }
   
     return <AntDesign name={icon} size={24} color={color} />;
@@ -52,7 +57,7 @@ const screenOptions = ({route}:any) => ({
   tabBarStyle: {
     backgroundColor: "#ffffff",
     width: 'full',
-    height: 50,
+    height: Platform.OS === 'android' ? 50 : 85,
     // borderRadius: 25,
     // alignSelf:"center",
     // marginBottom: 5,
@@ -64,10 +69,12 @@ const TabStackScreens = () => {
   return (
     <TabStack.Navigator screenOptions={screenOptions}>
       <TabStack.Screen options={{ headerShown: false }} name="Agenda" component={Agenda} />
+      <TabStack.Screen options={{ headerShown: false }} name="Notes" component={Notes} />
       <TabStack.Screen options={{ headerShown: false }} name="Wallet" component={Wallet} />
       <TabStack.Screen options={{ headerShown: false }} name="Caisse" component={Caisse} />
+      <TabStack.Screen options={{ headerShown: false }} name="Parametre" component={Parametre} /> 
       {/* <TabStack.Screen options={{ headerShown: false }} name="Vente" component={Vente} />
-      <TabStack.Screen options={{ headerShown: false }} name="Parametre" component={Parametre} /> */}
+      */}
     </TabStack.Navigator>
   )
 }

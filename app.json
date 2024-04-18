@@ -15,7 +15,9 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jordybrian.mongestionnaire",
+      "usesIcloudStorage": true
     },
     "android": {
       "adaptiveIcon": {
@@ -32,6 +34,21 @@
         "projectId": "bd5fc849-a4d3-4468-adfb-5cec79dfc920"
       }
     },
-    "owner": "brian_jordy"
+    "owner": "brian_jordy",
+    "plugins": [
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "L'application veut acceder à votre calendrier."
+        }
+      ],
+      "expo-localization",
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Development"
+        }
+      ]
+    ]
   }
 }

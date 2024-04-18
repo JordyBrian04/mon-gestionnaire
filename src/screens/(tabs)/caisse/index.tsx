@@ -16,6 +16,8 @@ import { AntDesign, FontAwesome5 } from '@expo/vector-icons'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { initDatabase } from '../../../components/database'
 import { useRoute } from '@react-navigation/native'
+import { StatusBar } from 'expo-status-bar'
+import { getNom } from '../../../services/AsyncStorage'
 
 const db = initDatabase()
 
@@ -26,6 +28,7 @@ const Caisse = () => {
   const [loading, setLoading] = useState(false)
   const [solde, setSolde] = useState(0)
   const [data, setData] = useState<any[]>([])
+  const [username, setUsername] = useState("")
   const route = useRoute()
 
   const [caisseData, setCaisseData] = useState({
@@ -64,7 +67,7 @@ const Caisse = () => {
         `SELECT * FROM caisse ORDER BY dates DESC;`,
         [],
         (_, result) => {
-          console.log(result.rows._array);
+          //console.log(result.rows._array);
           setData(
             result.rows._array
           )
@@ -78,6 +81,11 @@ const Caisse = () => {
   }
 
   useEffect(() => {
+    getNom()
+    .then((res) => {
+      setUsername(res)
+    })
+
     getData()
     //console.log(labels)
   }, [])
@@ -124,6 +132,11 @@ const Caisse = () => {
     } else {
       toggleDatePicker()
     }
+  }
+
+  const confirmIOSDate = () => {
+    setCaisseData({...caisseData, dates: date.toISOString().substring(0, 10)})
+    toggleDatePicker()
   }
 
   const handleAddCaisse = async () => {
@@ -185,16 +198,38 @@ const Caisse = () => {
                         display="spinner"
                         value={date}
                         onChange={onChange}
+                        style={{height: 120, marginTop: 20, width: '100%'}}
+                        textColor='#000'
                       />
                     )}
+
+                    {open && Platform.OS === 'ios' && (
+                      <View className='flex-row justify-around mb-3'>
+
+                        <TouchableOpacity className='p-3 bg-gray-200 rounded-full'
+                          onPress={toggleDatePicker}
+                        >
+                          <Text className='text-red-500 font-extrabold'>Annuler</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity className='p-3 bg-gray-200 rounded-full' 
+                          onPress={confirmIOSDate}
+                        >
+                          <Text className='text-green-500 font-extrabold'>Valider</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
                     {!open && (
                       <TouchableOpacity onPress={toggleDatePicker}>
                         <TextInput
                           placeholder="Date"
-                          className="border border-gray-300 p-3 rounded"
+                          placeholderTextColor='#000'
+                          className="border border-gray-300 p-3 rounded text-black"
                           editable={false}
                           value={caisseData.dates}
                           onChangeText={e => setCaisseData({...caisseData, dates: e})} 
+                          onPressIn={toggleDatePicker}
                         />
                       </TouchableOpacity>
                     )}
@@ -202,13 +237,15 @@ const Caisse = () => {
                 
                 <TextInput
                   placeholder="Description"
-                  className="border border-gray-300 p-3 rounded mb-2"
+                  placeholderTextColor='#000'
+                  className="border border-gray-300 p-3 rounded mb-2 text-black"
                   value={caisseData.description}
                   onChangeText={e => setCaisseData({...caisseData, description: e})} 
                 />
 
                 <TextInput
                   placeholder="Montant"
+                  placeholderTextColor='#000'
                   className="border border-gray-300 p-3 rounded mb-2"
                   keyboardType='numeric'
                   value={caisseData.montant}
@@ -233,6 +270,7 @@ const Caisse = () => {
 
   return (
     <View className='flex-1 bg-slate-100 items-center'>
+      <StatusBar style='auto' />
       <View className='w-full bg-blue-400 p-2 items-center justify-center h-[130] ' style={{borderBottomLeftRadius: 70, borderBottomRightRadius: 70}}>
         <Text className='text-white font-bold text-3xl'>{solde.toLocaleString('fr-FR')} FCFA</Text>
         <Text className='text-white text-xl font-light'>Montant</Text>
@@ -247,8 +285,8 @@ const Caisse = () => {
           </View>
 
           <View className='items-start justify-center'>
-            <Text className='text-black text-3xl font-extrabold mt-4 ml-2'>.... .... .... 2024</Text>
-            <Text className='text-black text-2xl font-bold mt-2 mb-2 ml-2'>Jordy Brian</Text>
+            <Text className='text-black text-3xl font-extrabold mt-4 ml-2'>.... .... .... {new Date().getFullYear()}</Text>
+            <Text className='text-black text-2xl font-bold mt-2 mb-2 ml-2'>{username}</Text>
           </View>
 
         </View>

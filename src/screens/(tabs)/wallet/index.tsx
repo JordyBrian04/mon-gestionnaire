@@ -19,6 +19,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import { SelectList } from 'react-native-dropdown-select-list'
 import { initDatabase } from '../../../components/database'
 import { useRoute } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar'
 
 const db = initDatabase()
 
@@ -176,7 +177,7 @@ const Wallet = ({ navigation }: any) => {
   const onChange = ({ type }: any, selectedDate: any) => {
     if (type === 'set') {
       const currentDate = selectedDate
-      //setDate(currentDate)
+      setDate(currentDate)
 
       if (Platform.OS === 'android') {
         toggleDatePicker()
@@ -209,6 +210,14 @@ const Wallet = ({ navigation }: any) => {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
+  }
+
+  const confirmIOSDate = () => {
+    setTransaction({
+      ...transaction,
+      dates: date.toISOString().substring(0, 10)
+    })
+    toggleDatePicker()
   }
 
   const handleAddTransaction = async () => {
@@ -321,12 +330,33 @@ const Wallet = ({ navigation }: any) => {
                           display="spinner"
                           value={date}
                           onChange={onChange}
+                          style={{height: 120, marginTop: 20, width: '100%'}}
+                          textColor='#000'
                         />
                       )}
+
+                    {open && Platform.OS === 'ios' && (
+                      <View className='flex-row justify-around mb-3'>
+
+                        <TouchableOpacity className='p-3 bg-gray-200 rounded-full'
+                          onPress={toggleDatePicker}
+                        >
+                          <Text className='text-red-500 font-extrabold'>Annuler</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity className='p-3 bg-gray-200 rounded-full' 
+                          onPress={confirmIOSDate}
+                        >
+                          <Text className='text-green-500 font-extrabold'>Valider</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
                       {!open && (
                         <TouchableOpacity onPress={toggleDatePicker}>
                           <TextInput
                             placeholder="Date"
+                            placeholderTextColor='#000'
                             className="border border-gray-300 p-3 rounded"
                             editable={false}
                             //value={tache.date}
@@ -334,6 +364,7 @@ const Wallet = ({ navigation }: any) => {
                             onChangeText={e =>
                               setTransaction({ ...transaction, dates: e })
                             }
+                            onPressIn={toggleDatePicker}
                           />
                         </TouchableOpacity>
                       )}
@@ -341,6 +372,7 @@ const Wallet = ({ navigation }: any) => {
 
                     <TextInput
                       placeholder="Description"
+                      placeholderTextColor='#000'
                       className="border border-gray-300 p-3 rounded mt-2"
                       value={transaction.description}
                       onChangeText={e =>
@@ -350,6 +382,7 @@ const Wallet = ({ navigation }: any) => {
 
                     <TextInput
                       placeholder="Montant"
+                      placeholderTextColor='#000'
                       className="border border-gray-300 p-3 rounded mt-2"
                       keyboardType="numeric"
                       value={transaction.montant}
@@ -367,18 +400,40 @@ const Wallet = ({ navigation }: any) => {
                           display="spinner"
                           value={date}
                           onChange={onChange}
+                          style={{height: 120, marginTop: 20, width: '100%'}}
+                          textColor='#000'
                         />
                       )}
+
+                      {open && Platform.OS === 'ios' && (
+                        <View className='flex-row justify-around mb-3'>
+
+                          <TouchableOpacity className='p-3 bg-gray-200 rounded-full'
+                            onPress={toggleDatePicker}
+                          >
+                            <Text className='text-red-500 font-extrabold'>Annuler</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity className='p-3 bg-gray-200 rounded-full' 
+                            onPress={confirmIOSDate}
+                          >
+                            <Text className='text-green-500 font-extrabold'>Valider</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
                       {!open && (
                         <TouchableOpacity onPress={toggleDatePicker}>
                           <TextInput
                             placeholder="Date"
+                            placeholderTextColor='#000'
                             className="border border-gray-300 p-3 rounded"
                             editable={false}
                             value={transaction.dates}
                             onChangeText={e =>
                               setTransaction({ ...transaction, dates: e })
                             }
+                            onPressIn={toggleDatePicker}
                           />
                         </TouchableOpacity>
                       )}
@@ -397,6 +452,7 @@ const Wallet = ({ navigation }: any) => {
 
                     <TextInput
                       placeholder="Description"
+                      placeholderTextColor='#000'
                       className="border border-gray-300 p-3 rounded mt-2"
                       value={transaction.description}
                       onChangeText={e =>
@@ -406,6 +462,7 @@ const Wallet = ({ navigation }: any) => {
 
                     <TextInput
                       placeholder="Montant"
+                      placeholderTextColor='#000'
                       className="border border-gray-300 p-3 rounded mt-2"
                       keyboardType="numeric"
                       value={transaction.montant}
@@ -417,7 +474,7 @@ const Wallet = ({ navigation }: any) => {
                 ) : null}
 
                 <TouchableOpacity
-                  className="mt-4 mb-1 p-3 bg-black rounded-3xl"
+                  className="mt-4 mb-2 p-3 bg-black rounded-3xl"
                   onPress={handleAddTransaction}
                 >
                   <Text className="text-white text-center font-bold text-[16px]">
@@ -433,7 +490,8 @@ const Wallet = ({ navigation }: any) => {
   }
 
   return (
-    <View className="pt-8 pl-3 pr-3 bg-white flex-1">
+    <View className="pt-10 pl-3 pr-3 bg-white flex-1">
+      <StatusBar style='dark' />
       <View className="flex-row items-center justify-between">
         <Text className="text-3xl font-extrabold text-gray-500">
           Mon portefeuille
