@@ -67,7 +67,7 @@ const Notes = () => {
         'SELECT * FROM notes', 
         [], 
         (_, result) => {
-          //console.log('result : ', result);
+          //console.log('result : ', result.rows._array);
           setAllNotes(result.rows._array)
           setNotes(result.rows._array)
         },
@@ -76,6 +76,14 @@ const Notes = () => {
           return false
         }
       )
+    })
+  }
+
+  const emptyNotes = async () => {
+    setNoteInput({
+      id: 0,
+      title: '',
+      content: ''
     })
   }
 
@@ -91,7 +99,7 @@ const Notes = () => {
         <View className='py-1 mb-1 bg-white' style={data.index > 0 && {borderTopWidth: 1, borderColor: '#f2f2f2'}}>
           <Text className='text-lg text-ellipsis font-bold text-black' numberOfLines={1}>{data.item.title}</Text>
           <Text className='text-[16px] text-ellipsis text-gray-600' numberOfLines={1}>{data.item.content}</Text>
-          <Text className='text-sm font-mono text-gray-400'>{itemDate.toLocaleDateString('fr-FR')}</Text>
+          <Text className='text-sm text-gray-400'>{itemDate.toLocaleDateString('fr-FR')}</Text>
         </View>
       </TouchableHighlight>
     )
@@ -255,6 +263,14 @@ const Notes = () => {
     }
   }
 
+  const setSeachText = (text:string) => {
+    if(text === ''){
+      setNotes(allNotes)
+      return
+    }
+    setNotes(allNotes.filter(note => note.content.toLowerCase().includes(text.toLowerCase()) || note.title.toLowerCase().includes(text.toLowerCase())).map(note => note))
+  }
+
 
   return (
       <BottomSheetModalProvider>
@@ -268,7 +284,7 @@ const Notes = () => {
                 Notes
               </Text>
 
-              <TouchableOpacity onPress={showModal}>
+              <TouchableOpacity onPress={() => [emptyNotes(),showModal()]}>
                 <Feather name="edit" size={24} color="#FFC300" />
               </TouchableOpacity>
             </View>
@@ -278,6 +294,7 @@ const Notes = () => {
                 placeholder='Rechercher'
                 //placeholderTextColor='#000'
                 className='bg-gray-200 p-1 rounded-lg'
+                onChangeText={(text) => setSeachText(text)}
               />
             </View>
 
@@ -356,18 +373,19 @@ const Notes = () => {
               <TextInput
                 placeholder='Titre'
                 className='w-full p-2 mb-2 text-xl text-black font-extrabold'
-                autoCapitalize='words'
+                autoCapitalize='sentences'
                 value={noteInput.title}
                 onChangeText={e  => setNoteInput({...noteInput, title:e})}
               />
 
               <TextInput
-                placeholder='Description'
-                className='w-full mb-2 p-2 text-blac '
-                autoCapitalize='words'
-                enablesReturnKeyAutomatically
-                multiline
+                placeholder='Titre'
+                className='w-full p-2 mb-2 text-black'
+                style={{textAlignVertical: 'top'}}
+                autoCapitalize='sentences'
                 value={noteInput.content}
+                autoCorrect
+                multiline={true}
                 onChangeText={e  => setNoteInput({...noteInput, content:e})}
               />
             </ScrollView>

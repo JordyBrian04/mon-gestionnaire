@@ -26,7 +26,8 @@ export default function App() {
       `
       CREATE TABLE IF NOT EXISTS param (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        code VARCHAR(10)
+        code VARCHAR(10),
+        nom VARCHAR(100)
       )`,
 
       `
@@ -100,16 +101,16 @@ export default function App() {
             }
           }
         );
-        // tx.executeSql(
-        //   `SELECT * FROM sqlite_master WHERE type='table' AND name='agenda';`,
-        //   [],
-        //   (_, { rows: { _array } }) => {
-        //     console.log(_array)
-        //   }
-        //   // (_, { rows: { _array } }) => {
-        //   //   console.log(_array)
-        //   // }
-        // );
+        tx.executeSql(
+          `ALTER TABLE agenda ADD calendarId VARCHAR(255) DEFAULT NULL;`,
+          [],
+          (_, { rows: { _array } }) => {
+            console.log(_array)
+          }
+          // (_, { rows: { _array } }) => {
+          //   console.log(_array)
+          // }
+        );
       });
     }
 

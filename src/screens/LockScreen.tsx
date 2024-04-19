@@ -57,11 +57,34 @@ const LockScreen = ({navigation}:any) => {
       const createTable = async () => {
         db.transaction(tx => {
           tx.executeSql(
+            `PRAGMA table_info(agenda); ALTER TABLE agenda ADD COLUMN calendarId VARCHAR(255) DEFAULT NULL;`,
+            [],
+            (_, result) => {
+              //Alert.alert(`transactions table created: ${result}`)
+              //console.log(result.rows)
+            },
+            (_, error) => {
+              console.error('Error creating transaction table:', error);
+              return false; // Retourne false en cas d'erreur
+            }
+          );
+          tx.executeSql(
+            `PRAGMA table_info(param); ALTER TABLE param ADD COLUMN nom VARCHAR(100) DEFAULT NULL;`,
+            [],
+            (_, result) => {
+              //console.log('colonne add:', result)
+            },
+            (_, error) => {
+              console.error('Error creating caisse table:', error);
+              return false; // Retourne false en cas d'erreur
+            }
+          );
+          tx.executeSql(
             'SELECT * FROM param;',
             [],
             (_, results) => {
               setuserNbr(results.rows.length)
-              console.log('Query result:', results.rows._array); // Log the row count
+              //console.log('Query result:', results.rows._array); // Log the row count
               //console.log('Query result:', (results.rows._array[0].nom === null ? "" : results.rows._array[0].nom)); // Log the row count
               if(results.rows.length > 0) {
                 setPass(results.rows._array[0].code)
@@ -77,42 +100,6 @@ const LockScreen = ({navigation}:any) => {
               return false
             }
           );
-
-  
-          // tx.executeSql(
-          // `CREATE TABLE IF NOT EXISTS transactions (
-          //   transaction_id INTEGER PRIMARY KEY AUTOINCREMENT, 
-          //   type_transaction varchar(20) NOT NULL,
-          //   description varchar(255) NOT NULL,
-          //   dates date NOT NULL,
-          //   montant INTEGER NOT NULL,
-          //   type_depense varchar(25) DEFAULT NULL
-          //   );`,
-          //   [],
-          //   (_, result) => {
-          //     console.log('transactions table created:', result)
-          //   },
-          //   (_, error) => {
-          //     console.error('Error creating transaction table:', error);
-          //     return false; // Retourne false en cas d'erreur
-          //   }
-          // );
-          // tx.executeSql(
-          // `CREATE TABLE IF NOT EXISTS caisse (
-          //   caisse_id INTEGER PRIMARY KEY AUTOINCREMENT, 
-          //   description varchar(255) NOT NULL,
-          //   dates date NOT NULL,
-          //   montant INTEGER NOT NULL
-          //   );`,
-          //   [],
-          //   (_, result) => {
-          //     console.log('caisse table created:', result)
-          //   },
-          //   (_, error) => {
-          //     console.error('Error creating caisse table:', error);
-          //     return false; // Retourne false en cas d'erreur
-          //   }
-          // );
         });
       }
 
@@ -264,7 +251,7 @@ const LockScreen = ({navigation}:any) => {
         <View className='w-3 h-3 border border-white' style={{ borderRadius: 100 }}></View> */}
       </View>
 
-      <View className='mt-14 flex-row flex-wrap items-center justify-center' style={{width: Platform.OS === 'ios' ? '90%' : Dimensions.get('window').width}}>
+      <View className='mt-14 flex-row flex-wrap items-center justify-center' style={{width: Platform.OS === 'ios' ? '90%' : Dimensions.get('window').width - 20}}>
         {nombres.map(n => {
               // Fonction de comparaison aléatoire pour le mélange
 

@@ -5,10 +5,11 @@ import {
   TouchableOpacity,
   Modal,
   ActivityIndicator,
-  Alert
+  Alert,
+  TextInput
 } from 'react-native'
 import React, { useEffect, useState } from 'react'
-import { getNom } from '../../../services/AsyncStorage'
+import { getNom, storeNom } from '../../../services/AsyncStorage'
 import { MaterialIcons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import * as SQLite from 'expo-sqlite';
@@ -24,6 +25,8 @@ const Parametre = () => {
   const [initial, setInitiales] = useState('')
   const [loading, setLoading] = useState(false)
   const [db, setDb] = useState(initDatabase())
+  const [showModal, setShowModal] = useState(false)
+  const [nomInput, setNomInput] = useState("")
 
   useEffect(() => {
     getNom().then(res => {
@@ -46,7 +49,7 @@ const Parametre = () => {
     setLoading(false)
 }
 
-const exportDb = async () => {
+  const exportDb = async () => {
     await Sharing.shareAsync(
         FileSystem.documentDirectory + 'SQLite/mon_gestionnaire.db'
     )
@@ -92,6 +95,68 @@ const exportDb = async () => {
     )
   }
 
+  const handleValideNom = () => {
+    setLoading(true)
+      db.transaction(tx => {
+        tx.executeSql(
+          'UPDATE param SET nom=?;',
+          [nomInput],
+          (_, result) => {
+            if(result.rowsAffected > 0){
+              storeNom(nomInput)
+              setUsername(nomInput)
+
+              const words = nomInput.split(' ')
+              const initials = words.slice(0, 2).map((word: any) => word.charAt(0))
+              const initialsString = initials.join('')
+              setInitiales(initialsString)
+
+              setShowModal(false)
+              setLoading(false)
+            }else{
+              setNomInput("")
+              setShowModal(false)
+              setLoading(false)
+            }
+          },
+          (_, error) => {
+            console.error('Error inserting data:', error);
+            setShowModal(false)
+            setLoading(false)
+            return false;
+          }
+        );
+      });
+  }
+
+  function renderNameModal () {
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showModal}
+        onRequestClose={() => setShowModal(false)}
+        
+      >
+        <View className='bg-black/20 flex-1 items-center justify-center'>
+          <View className='bg-white w-[90%] p-4 rounded-lg'>
+            <Text>Entrez votre nom</Text>
+            <TextInput
+              className='bg-slate-100 border border-slate-200 rounded-lg p-3 mt-2'
+              onChangeText={(text) => setNomInput(text)}
+              value={nomInput}
+            />
+
+            <TouchableOpacity className='mt-3 p-3 items-center justify-center bg-gray-800 rounded-2xl' 
+              onPress={handleValideNom}>
+              <Text className='text-white font-bold'>Valider</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    )
+  }
+
   return (
     <View className="pt-11 pr-4 pl-4">
       <StatusBar style="dark" />
@@ -101,7 +166,13 @@ const exportDb = async () => {
           <View className="bg-blue-500/50 w-28 h-28 rounded-full items-center justify-center">
             <Text className="text-4xl font-bold text-white">{initial}</Text>
           </View>
-          <Text className="mt-3 text-2xl font-bold">{username}</Text>
+          <TouchableOpacity onPress={() => [setShowModal(true), setNomInput(username)]}>
+            <Text className="mt-3 text-2xl font-bold">{username}</Text>
+            <View className='absolute -right-5 bg-slate-300 p-1 rounded-full -top-2'>
+              <MaterialIcons name="edit" size={20} color="black" />
+            </View>
+          </TouchableOpacity>
+          
         </View>
 
         {/* Liste */}
@@ -129,6 +200,7 @@ const exportDb = async () => {
         </View>
       </ScrollView>
       {loading && renderModal()}
+      {renderNameModal()}
     </View>
   )
 }
